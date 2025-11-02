@@ -277,3 +277,68 @@ export const updateTran = async (
     throw new Error(msg);
   }
 };
+
+// Delete a plan row identified by pid and time (with ms fallback)
+export const deletePlan = async (
+  original: { pid: string; time: string } | Pick<Plan, 'pid' | 'time'>
+): Promise<void> => {
+  const pid = (original as any).pid as string;
+  const timeIso = new Date((original as any).time).toISOString();
+
+  let { data, error } = await supabase
+    .from('plan')
+    .delete()
+    .eq('pid', pid)
+    .eq('time', timeIso)
+    .select('pid');
+
+  if (error) {
+    console.error('Error deleting plan:', error);
+    throw error;
+  }
+
+  if (!data || data.length === 0) {
+    // Fallback: try without milliseconds
+    const d = new Date((original as any).time);
+    d.setMilliseconds(0);
+    const noMsIso = d.toISOString();
+    const res2 = await supabase
+      .from('plan')
+      .delete()
+      .eq('pid', pid)
+      .eq('time', noMsIso)
+      .select('pid');
+    if (res2.error) {
+      console.error('Error deleting plan (fallback):', res2.error);
+      throw res2.error;
+    }
+    data = res2.data;
+  }
+
+  if (!data || data.length === 0) {
+    const msg = `No matching plan row to delete. Check identifiers: ${JSON.stringify({ pid, time: (original as any).time })}`;
+    console.warn(msg);
+    throw new Error(msg);
+  }
+};
+
+// Delete a tran row by id
+export const deleteTran = async (
+  original: { id: string } | Pick<Tran, 'id'>
+): Promise<void> => {
+  const { data, error } = await supabase
+    .from('tran')
+    .delete()
+    .eq('id', (original as any).id)
+    .select('id');
+
+  if (error) {
+    console.error('Error deleting tran:', error);
+    throw error;
+  }
+  if (!data || data.length === 0) {
+    const msg = `No matching tran row to delete for id=${(original as any).id}`;
+    console.warn(msg);
+    throw new Error(msg);
+  }
+};

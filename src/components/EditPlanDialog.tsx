@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { TimelineItem } from '../db';
-import { updatePlan, updateTran } from '../db';
+import { updatePlan, updateTran, deletePlan, deleteTran } from '../db';
 
 interface EditPlanDialogProps {
   isOpen: boolean;
@@ -58,6 +58,7 @@ export function EditPlanDialog({ isOpen, item, onClose, onSaved }: EditPlanDialo
   // Track initial values to detect whether user actually changed time/offset
   const [initialTimeInput, setInitialTimeInput] = useState<string>('');
   const [initialOffset, setInitialOffset] = useState<number>(getDefaultOffsetHours());
+  const [click, setClick] = useState<number>(0);
 
   const originalKey = useMemo(() => {
     if (!item) return null;
@@ -88,6 +89,15 @@ export function EditPlanDialog({ isOpen, item, onClose, onSaved }: EditPlanDialo
     }
   }, [item, isOpen]);
 
+  // Reset the delete-confirmation click state after a short timeout.
+  // This hook must stay before any early returns to keep hook order stable.
+  useEffect(() => {
+    if (click > 0) {
+      const timer = setTimeout(() => setClick(0), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [click]);
+
   if (!isOpen || !item) return null;
 
   const onSave = async () => {
@@ -116,13 +126,36 @@ export function EditPlanDialog({ isOpen, item, onClose, onSaved }: EditPlanDialo
     }
   };
 
+  const onDelete = async () => {
+    setClick(click + 1);
+    if (click < 1) return;
+    try {
+      setSaving(true);
+      setError(null);
+      if (!originalKey) throw new Error('Missing plan key');
+      if (originalKey.type === 'plan') {
+        // Delete using original identifiers (ignore any unsaved edits)
+        await deletePlan({ pid: originalKey.key.pid, time: originalKey.key.time });
+      } else {
+        await deleteTran({ id: originalKey.key.id });
+      }
+      onSaved();
+      onClose();
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to delete');
+    } finally {
+      setSaving(false);
+      setClick(0);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* backdrop */}
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
       {/* modal */}
-      <div className="relative z-10 w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+      <div className="relative z-10 w-full max-w-lg rounded-3xl bg-white p-6 shadow-xl">
         <h2 className="text-xl font-bold mb-4">{item.type === 'plan' ? 'Edit Plan' : 'Edit Transport'}</h2>
 
         <div className="space-y-4">
@@ -171,24 +204,33 @@ export function EditPlanDialog({ isOpen, item, onClose, onSaved }: EditPlanDialo
             <p className="text-xs text-gray-500 mt-1">Tip: Use line breaks; rendering preserves them.</p>
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-red-700">{error}</p>}
         </div>
 
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="mt-6 flex flex-row justify-between">
           <button
-            className="px-4 py-2 rounded-md border border-gray-300 text-gray-700"
-            onClick={onClose}
+            className="px-4 py-2 w-22 rounded-xl bg-red-700 text-white disabled:opacity-60"
+            onClick={onDelete}
             disabled={saving}
           >
-            Cancel
+            {click > 0 ? 'Sure ?' : 'Delete'}
           </button>
-          <button
-            className="px-4 py-2 rounded-md bg-blue-600 text-white disabled:opacity-60"
-            onClick={onSave}
-            disabled={saving}
-          >
-            {saving ? 'Saving…' : 'Save'}
-          </button>
+          <div className='flex gap-3'>
+            <button
+              className="px-4 py-2 rounded-xl text-gray-700"
+              onClick={onClose}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-4 py-2 rounded-xl bg-blue-900 text-white disabled:opacity-60"
+              onClick={onSave}
+              disabled={saving}
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
