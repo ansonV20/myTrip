@@ -31,6 +31,7 @@ export interface Tran {
   stay?: number;
   name: string;
   info?: string;
+  utc?: number;
   type: 'tran';
 }
 
@@ -40,13 +41,18 @@ export interface Plan {
   tid: string;
   pid: string;
   info?: string;
+  utc?: number;
   type: 'plan';
+  // Resolved human-readable name for the plan type (from table `type` via `tid`).
+  // Optional to avoid breaking existing callers when not fetched.
+  typeName?: string;
   place: Place;
 }
 
 export type TimelineItem = Plan | Tran;
 
 export const getTimeline = async (): Promise<TimelineItem[]> => {
+  // Load plan rows with related place details
   const { data: plans, error: planError } = await supabase
     .from('plan')
     .select(`
@@ -55,6 +61,7 @@ export const getTimeline = async (): Promise<TimelineItem[]> => {
       tid,
       pid,
       info,
+      utc,
       place:place(
         id,
         name,
@@ -71,6 +78,15 @@ export const getTimeline = async (): Promise<TimelineItem[]> => {
     return [];
   }
 
+  // Load type lookup to resolve tid -> type name
+  const { data: types, error: typeError } = await supabase
+    .from('type')
+    .select('id, name');
+  if (typeError) {
+    console.warn('Warning: could not load types; type names will be omitted:', typeError);
+  }
+  const typeMap = new Map<string, string>((types ?? []).map((t: any) => [t.id as string, t.name as string]));
+
   const { data: trans, error: tranError } = await supabase
     .from('tran')
     .select('*');
@@ -81,8 +97,13 @@ export const getTimeline = async (): Promise<TimelineItem[]> => {
   }
 
   const timeline: TimelineItem[] = [
-    ...plans.map(p => ({ ...p, type: 'plan' as const })),
-    ...trans.map(t => ({ ...t, type: 'tran' as const })),
+    ...plans.map((p: any) => ({
+      ...p,
+      type: 'plan' as const,
+      // Attach resolved type name if available
+      typeName: typeMap.get(p.tid as string),
+    })),
+    ...trans.map((t: any) => ({ ...t, type: 'tran' as const })),
   ];
 
   timeline.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
@@ -96,31 +117,163 @@ export const updatePlan = async (
   original:
     | { tid: string; pid: string; time: string }
     | Pick<Plan, 'tid' | 'pid' | 'time'>,
-  updates: { time?: string; stay?: number | null; info?: string | null }
+  updates: { time?: string; stay?: number | null; info?: string | null; utc?: number | null; tid?: string; pid?: string }
 ): Promise<void> => {
-  const { error } = await supabase
-    .from('plan')
-    .update({ ...updates })
-    .match({ tid: original.tid, pid: original.pid, time: original.time });
+  // Normalize original time to avoid format mismatches
+  const origTimeIso = new Date(original.time).toISOString();
+  const origPid = (original as any).pid as string;
+  const origTid = (original as any).tid as string;
 
-  if (error) {
-    console.error('Error updating plan:', error);
-    throw error;
+  const newTime = updates.time ?? original.time;
+  const newPid = updates.pid ?? origPid;
+  const newTid = updates.tid ?? origTid;
+
+  // Compare primary key with seconds precision to avoid false positives due to ms differences
+  const normalizeSec = (iso: string) => {
+    const d = new Date(iso);
+    d.setMilliseconds(0);
+    return d.toISOString();
+  };
+  const changedPk = normalizeSec(newTime) !== normalizeSec(original.time) || newPid !== origPid;
+
+  if (!changedPk) {
+    // Simple in-place update when primary key stays the same
+    let { error, data } = await supabase
+      .from('plan')
+      .update({ ...updates })
+      .eq('pid', origPid)
+      .eq('time', origTimeIso)
+      .select('pid');
+    if (error) {
+      console.error('Error updating plan:', error);
+      throw error;
+    }
+    if (!data || data.length === 0) {
+      // Fallback try without milliseconds
+      const d = new Date(original.time);
+      d.setMilliseconds(0);
+      const noMsIso = d.toISOString();
+      const res2 = await supabase
+        .from('plan')
+        .update({ ...updates })
+        .eq('pid', origPid)
+        .eq('time', noMsIso)
+        .select('pid');
+      if (res2.error) {
+        console.error('Error updating plan (fallback):', res2.error);
+        throw res2.error;
+      }
+      data = res2.data;
+    }
+    if (!data || data.length === 0) {
+      const msg = `No matching plan row to update. Check identifiers: ${JSON.stringify({ pid: origPid, time: original.time })}`;
+      console.warn(msg);
+      throw new Error(msg);
+    }
+    return;
+  }
+
+  // PK changed (time and/or pid): insert new row then delete old row
+  // 1) Load existing row to preserve unspecified fields
+  let { data: found, error: findErr } = await supabase
+    .from('plan')
+    .select('*')
+    .eq('pid', origPid)
+    .eq('time', origTimeIso)
+    .limit(1);
+  if (findErr) {
+    console.error('Error fetching original plan:', findErr);
+    throw findErr;
+  }
+  if (!found || found.length === 0) {
+    // Try without milliseconds
+    const d = new Date(original.time);
+    d.setMilliseconds(0);
+    const noMsIso = d.toISOString();
+    const res2 = await supabase
+      .from('plan')
+      .select('*')
+      .eq('pid', origPid)
+      .eq('time', noMsIso)
+      .limit(1);
+    if (res2.error) {
+      console.error('Error fetching original plan (fallback):', res2.error);
+      throw res2.error;
+    }
+    found = res2.data ?? [];
+    if (!found || found.length === 0) {
+      const msg = `Original plan not found for moving: ${JSON.stringify({ pid: origPid, time: original.time })}`;
+      console.warn(msg);
+      throw new Error(msg);
+    }
+  }
+
+  const originalRow = found[0] as any;
+  // Compose new row: preserve all existing columns, override with updates and new PK fields
+  const newRow = {
+    ...originalRow,
+    ...updates,
+    pid: newPid,
+    tid: newTid,
+    time: newTime,
+  } as any;
+  // Ensure only known columns are sent; but since we selected '*', it's acceptable for PostgREST.
+
+  // 2) Insert new row
+  const { error: insertErr } = await supabase.from('plan').insert(newRow);
+  if (insertErr) {
+    console.error('Error inserting new plan during move:', insertErr);
+    throw insertErr;
+  }
+
+  // 3) Delete old row
+  let { error: delErr, data: delData } = await supabase
+    .from('plan')
+    .delete()
+    .eq('pid', origPid)
+    .eq('time', origTimeIso)
+    .select('pid');
+  if (delErr) {
+    console.error('Error deleting old plan after move:', delErr);
+    throw delErr;
+  }
+  if (!delData || delData.length === 0) {
+    // Try delete with time without ms
+    const d = new Date(original.time);
+    d.setMilliseconds(0);
+    const noMsIso = d.toISOString();
+    const res2 = await supabase
+      .from('plan')
+      .delete()
+      .eq('pid', origPid)
+      .eq('time', noMsIso)
+      .select('pid');
+    if (res2.error) {
+      console.error('Error deleting old plan after move (fallback):', res2.error);
+      throw res2.error;
+    }
+    delData = res2.data;
   }
 };
 
 // Update a tran row by id with new values.
 export const updateTran = async (
   original: { id: string } | Pick<Tran, 'id'>,
-  updates: { time?: string; stay?: number | null; info?: string | null }
+  updates: { time?: string; stay?: number | null; info?: string | null; utc?: number | null }
 ): Promise<void> => {
-  const { error } = await supabase
+  const { error, data } = await supabase
     .from('tran')
     .update({ ...updates })
-    .match({ id: original.id });
+    .eq('id', (original as any).id)
+    .select('id');
 
   if (error) {
     console.error('Error updating tran:', error);
     throw error;
+  }
+  if (!data || data.length === 0) {
+    const msg = `No matching tran row to update for id=${(original as any).id}`;
+    console.warn(msg);
+    throw new Error(msg);
   }
 };

@@ -9,29 +9,43 @@ interface EditPlanDialogProps {
   onSaved: () => void; // parent should refresh timeline
 }
 
-function toInputDateTimeLocal(value: string | undefined): string {
-  if (!value) return '';
-  const d = new Date(value);
+// Offset-based timezone helpers (choices like +8, +9)
+const getDefaultOffsetHours = () => {
+  // JS offset is minutes behind UTC; invert and convert to hours
+  const minutes = -new Date().getTimezoneOffset();
+  return Math.round(minutes / 60);
+};
+
+const getOffsetOptions = (): number[] => {
+  // Whole-hour offsets from -12 to +14
+  const opts: number[] = [];
+  for (let h = -12; h <= 14; h++) opts.push(h);
+  return opts;
+};
+
+function toInputDateTimeWithOffset(iso: string | undefined, offsetHours: number): string {
+  if (!iso) return '';
+  const d = new Date(iso);
   if (isNaN(d.getTime())) return '';
-  // Build YYYY-MM-DDTHH:MM based on local time
+  const t = d.getTime() + offsetHours * 3600000;
+  const dd = new Date(t);
   const pad = (n: number) => String(n).padStart(2, '0');
-  const yyyy = d.getFullYear();
-  const mm = pad(d.getMonth() + 1);
-  const dd = pad(d.getDate());
-  const hh = pad(d.getHours());
-  const mi = pad(d.getMinutes());
-  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+  const yyyy = dd.getUTCFullYear();
+  const mm = pad(dd.getUTCMonth() + 1);
+  const da = pad(dd.getUTCDate());
+  const hh = pad(dd.getUTCHours());
+  const mi = pad(dd.getUTCMinutes());
+  return `${yyyy}-${mm}-${da}T${hh}:${mi}`;
 }
 
-function fromInputDateTimeLocal(value: string): string {
-  // value is like 'YYYY-MM-DDTHH:MM' in local time; convert to ISO string preserving local time
-  // We create a Date with local components.
-  if (!value) return '';
-  const [datePart, timePart] = value.split('T');
+function fromInputDateTimeWithOffset(local: string, offsetHours: number): string {
+  if (!local) return '';
+  const [datePart, timePart] = local.split('T');
   const [y, m, d] = datePart.split('-').map(Number);
   const [hh, mm] = timePart.split(':').map(Number);
-  const local = new Date(y, (m - 1), d, hh, mm, 0, 0);
-  return local.toISOString();
+  const utcNaive = Date.UTC(y, m - 1, d, hh, mm, 0);
+  const epoch = utcNaive - offsetHours * 3600000;
+  return new Date(epoch).toISOString();
 }
 
 export function EditPlanDialog({ isOpen, item, onClose, onSaved }: EditPlanDialogProps) {
@@ -40,6 +54,10 @@ export function EditPlanDialog({ isOpen, item, onClose, onSaved }: EditPlanDialo
   const [info, setInfo] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [offset, setOffset] = useState<number>(getDefaultOffsetHours());
+  // Track initial values to detect whether user actually changed time/offset
+  const [initialTimeInput, setInitialTimeInput] = useState<string>('');
+  const [initialOffset, setInitialOffset] = useState<number>(getDefaultOffsetHours());
 
   const originalKey = useMemo(() => {
     if (!item) return null;
@@ -51,7 +69,12 @@ export function EditPlanDialog({ isOpen, item, onClose, onSaved }: EditPlanDialo
 
   useEffect(() => {
     if (item) {
-      setTime(toInputDateTimeLocal(item.time));
+  const def = typeof (item as any).utc === 'number' ? (item as any).utc : getDefaultOffsetHours();
+  setOffset(def);
+  const t = toInputDateTimeWithOffset(item.time, def);
+  setTime(t);
+  setInitialTimeInput(t);
+  setInitialOffset(def);
       setStay(item.stay != null ? String(item.stay) : '');
       setInfo(item.info ?? '');
       setError(null);
@@ -60,6 +83,8 @@ export function EditPlanDialog({ isOpen, item, onClose, onSaved }: EditPlanDialo
       setStay('');
       setInfo('');
       setError(null);
+      setInitialTimeInput('');
+      setInitialOffset(getDefaultOffsetHours());
     }
   }, [item, isOpen]);
 
@@ -70,14 +95,17 @@ export function EditPlanDialog({ isOpen, item, onClose, onSaved }: EditPlanDialo
       setSaving(true);
       setError(null);
       if (!originalKey) throw new Error('Missing plan key');
-      const newTimeIso = time ? fromInputDateTimeLocal(time) : item.time;
+  // Only change time when user actually changed the time input or the offset
+  const newTimeIso = time && (time !== initialTimeInput || offset !== initialOffset)
+    ? fromInputDateTimeWithOffset(time, offset)
+    : undefined;
       const newStay = stay === '' ? null : Math.max(0, Math.floor(Number(stay)));
       const newInfo = info === '' ? null : info;
 
       if (originalKey.type === 'plan') {
-        await updatePlan(originalKey.key, { time: newTimeIso, stay: newStay, info: newInfo });
+        await updatePlan(originalKey.key, { time: newTimeIso, stay: newStay, info: newInfo, utc: offset });
       } else {
-        await updateTran(originalKey.key, { time: newTimeIso, stay: newStay, info: newInfo });
+        await updateTran(originalKey.key, { time: newTimeIso ?? item.time, stay: newStay, info: newInfo, utc: offset });
       }
       onSaved();
       onClose();
@@ -100,12 +128,23 @@ export function EditPlanDialog({ isOpen, item, onClose, onSaved }: EditPlanDialo
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
-            <input
-              type="datetime-local"
-              className="w-full rounded-md border border-gray-300 p-2"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-            />
+            <div className="flex gap-2">
+              <input
+                type="datetime-local"
+                className="w-full rounded-md border border-gray-300 p-2"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+              />
+              <select
+                className="rounded-md border border-gray-300 p-2 text-sm"
+                value={offset}
+                onChange={(e) => setOffset(Number(e.target.value))}
+              >
+                {getOffsetOptions().map((h) => (
+                  <option key={h} value={h}>{`UTC${h >= 0 ? '+' : ''}${h}`}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>

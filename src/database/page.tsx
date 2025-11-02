@@ -26,25 +26,43 @@ function FieldRow({ label, value }: { label: string; value: any }) {
 	);
 }
 
-function toLocalInput(value: any): string {
-	if (!value) return '';
-	try {
-		const d = new Date(value);
-		if (isNaN(d.getTime())) return String(value);
-		const pad = (n: number) => String(n).padStart(2, '0');
-		return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-	} catch {
-		return String(value);
-	}
+// Legacy helper (unused now after timezone support) removed
+
+// Offset-based timezone helpers (choices like +8, +9)
+const getDefaultOffsetHours = () => {
+	const minutes = -new Date().getTimezoneOffset();
+	return Math.round(minutes / 60);
+};
+
+const getOffsetOptions = (): number[] => {
+	const opts: number[] = [];
+	for (let h = -12; h <= 14; h++) opts.push(h);
+	return opts;
+};
+
+function toInputDateTimeWithOffset(iso: string | undefined, offsetHours: number): string {
+	if (!iso) return '';
+	const d = new Date(iso);
+	if (isNaN(d.getTime())) return '';
+	const t = d.getTime() + offsetHours * 3600000;
+	const dd = new Date(t);
+	const pad = (n: number) => String(n).padStart(2, '0');
+	const yyyy = dd.getUTCFullYear();
+	const mm = pad(dd.getUTCMonth() + 1);
+	const da = pad(dd.getUTCDate());
+	const hh = pad(dd.getUTCHours());
+	const mi = pad(dd.getUTCMinutes());
+	return `${yyyy}-${mm}-${da}T${hh}:${mi}`;
 }
 
-function fromLocalInput(value: string): string {
-	if (!value) return '';
-	const [datePart, timePart] = value.split('T');
+function fromInputDateTimeWithOffset(local: string, offsetHours: number): string {
+	if (!local) return '';
+	const [datePart, timePart] = local.split('T');
 	const [y, m, d] = datePart.split('-').map(Number);
 	const [hh, mm] = timePart.split(':').map(Number);
-	const local = new Date(y, m - 1, d, hh, mm, 0, 0);
-	return local.toISOString();
+	const utcNaive = Date.UTC(y, m - 1, d, hh, mm, 0);
+	const epoch = utcNaive - offsetHours * 3600000;
+	return new Date(epoch).toISOString();
 }
 
 type EditDialogProps = {
@@ -59,10 +77,37 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 	const [form, setForm] = useState<Row>({});
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [offset] = useState<number>(getDefaultOffsetHours());
+	const [placeOptions, setPlaceOptions] = useState<{ id: string; name: string }[]>([]);
+	const [typeOptions, setTypeOptions] = useState<{ id: string; name: string }[]>([]);
 
 	useEffect(() => {
-		if (row) setForm(row);
-	}, [row]);
+		if (row) {
+			// Initialize form, but set a stable time string so offset changes won't mutate the input
+			setForm((_) => {
+				const next: Row = { ...row };
+				if (row.time) {
+					const baseOffset = typeof (row as any).utc === 'number' ? (row as any).utc : offset;
+					next.time = toInputDateTimeWithOffset(row.time, baseOffset);
+				}
+				return next;
+			});
+		}
+	}, [row, open]);
+
+	// Load FK options when editing plan
+	useEffect(() => {
+		const loadOptions = async () => {
+			if (!open || table !== 'plan') return;
+			const [{ data: places, error: perr }, { data: types, error: terr }] = await Promise.all([
+				supabase.from('place').select('id, name').order('id'),
+				supabase.from('type').select('id, name').order('id'),
+			]);
+			if (!perr && places) setPlaceOptions(places as any);
+			if (!terr && types) setTypeOptions(types as any);
+		};
+		loadOptions();
+	}, [open, table]);
 
 	if (!open || !row) return null;
 
@@ -80,7 +125,7 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 
 	// Disable editing of identifier keys
 	const disabledKeysByTable: Partial<Record<TableName, string[]>> = {
-		plan: ['tid', 'pid'],
+		// Allow editing tid/pid via dropdowns for plan
 		tran: ['id'],
 		place: ['id'],
 		type: ['id'],
@@ -95,18 +140,22 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 				await updatePlan(
 					{ tid: row.tid, pid: row.pid, time: row.time },
 					{
-						time: form.time && form.time.includes('T') ? fromLocalInput(form.time) : form.time,
+						time: form.time && form.time.includes('T') ? fromInputDateTimeWithOffset(form.time, Number((form as any).utc ?? (row as any).utc ?? offset)) : form.time,
 						stay: form.stay === '' || form.stay == null ? null : Number(form.stay),
 						info: form.info == null || form.info === '' ? null : String(form.info),
+						utc: Number((form as any).utc ?? (row as any).utc ?? offset),
+						tid: form.tid ?? row.tid,
+						pid: form.pid ?? row.pid,
 					}
 				);
 			} else if (table === 'tran') {
 				await updateTran(
 					{ id: row.id },
 					{
-						time: form.time && form.time.includes('T') ? fromLocalInput(form.time) : form.time,
+						time: form.time && form.time.includes('T') ? fromInputDateTimeWithOffset(form.time, Number((form as any).utc ?? (row as any).utc ?? offset)) : form.time,
 						stay: form.stay === '' || form.stay == null ? null : Number(form.stay),
 						info: form.info == null || form.info === '' ? null : String(form.info),
+						utc: Number((form as any).utc ?? (row as any).utc ?? offset),
 					}
 				);
 			} else {
@@ -130,21 +179,68 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 			<div className="relative z-10 w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl">
 				<h2 className="text-xl font-bold mb-4">Edit {table}</h2>
 				<div className="space-y-3">
-								{keys.map((k) => (
+					{keys.map((k) => (
 						<div key={k}>
 							<label className="block text-sm font-medium text-gray-700 mb-1">{k}</label>
-							<input
-								className="w-full rounded-md border border-gray-300 p-2"
-											type={getInputType(k)}
-											value={k === 'time' ? toLocalInput(form[k]) : String(form[k] ?? '')}
-											onChange={(e) =>
-												setForm((f) => ({
-													...f,
-													[k]: k === 'stay' || getInputType(k) === 'number' ? Number(e.target.value) : e.target.value,
-												}))
-											}
-											disabled={disabledKeys.has(k)}
-							/>
+								{k === 'time' ? (
+											<div className="flex gap-2">
+												<input
+													className="w-full rounded-md border border-gray-300 p-2"
+													type="datetime-local"
+													value={String(form[k] ?? '')}
+													onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
+													disabled={disabledKeys.has(k)}
+												/>
+												<select
+													className="rounded-md border border-gray-300 p-2 text-sm"
+													value={Number((form as any)['utc'] ?? (row as any)['utc'] ?? offset)}
+													onChange={(e) => setForm((f) => ({ ...f, utc: Number(e.target.value) }))}
+												>
+													{getOffsetOptions().map((h) => (
+														<option key={h} value={h}>{`UTC${h >= 0 ? '+' : ''}${h}`}</option>
+													))}
+												</select>
+											</div>
+								) : table === 'plan' && k === 'tid' ? (
+									<select
+										className="w-full rounded-md border border-gray-300 p-2"
+										value={String(form.tid ?? row.tid ?? '')}
+										onChange={(e) => setForm((f) => ({ ...f, tid: e.target.value }))}
+									>
+										<option value="" disabled>Select Type…</option>
+										{typeOptions.map((opt) => (
+											<option key={opt.id} value={opt.id}>
+												{opt.id} — {opt.name}
+											</option>
+										))}
+									</select>
+								) : table === 'plan' && k === 'pid' ? (
+									<select
+										className="w-full rounded-md border border-gray-300 p-2"
+										value={String(form.pid ?? row.pid ?? '')}
+										onChange={(e) => setForm((f) => ({ ...f, pid: e.target.value }))}
+									>
+										<option value="" disabled>Select Place…</option>
+										{placeOptions.map((opt) => (
+											<option key={opt.id} value={opt.id}>
+												{opt.id} — {opt.name}
+											</option>
+										))}
+									</select>
+										) : (
+											<input
+												className="w-full rounded-md border border-gray-300 p-2"
+												type={getInputType(k)}
+												value={String(form[k] ?? '')}
+												onChange={(e) =>
+													setForm((f) => ({
+														...f,
+														[k]: k === 'stay' || getInputType(k) === 'number' ? Number(e.target.value) : e.target.value,
+													}))
+												}
+												disabled={disabledKeys.has(k)}
+											/>
+										)}
 						</div>
 					))}
 					{error && <p className="text-sm text-red-600">{error}</p>}
@@ -171,15 +267,17 @@ type AddDialogProps = {
 
 const tableSchemas: Record<TableName, { key: string; label: string; type: 'text' | 'number' | 'datetime-local'; required?: boolean }[]> = {
 	plan: [
-		{ key: 'tid', label: 'Trip ID (tid)', type: 'text', required: true },
+		{ key: 'tid', label: 'Type ID (tid)', type: 'text', required: true },
 		{ key: 'pid', label: 'Place ID (pid)', type: 'text', required: true },
 		{ key: 'time', label: 'Time', type: 'datetime-local', required: true },
+		// { key: 'utc', label: 'UTC Offset (e.g., +8)', type: 'number' },
 		{ key: 'stay', label: 'Stay (minutes)', type: 'number' },
 		{ key: 'info', label: 'Info', type: 'text' },
 	],
 	tran: [
 		{ key: 'name', label: 'Name', type: 'text', required: true },
 		{ key: 'time', label: 'Time', type: 'datetime-local', required: true },
+		// { key: 'utc', label: 'UTC Offset (e.g., +8)', type: 'number' },
 		{ key: 'stay', label: 'Stay (minutes)', type: 'number' },
 		{ key: 'info', label: 'Info', type: 'text' },
 	],
@@ -203,12 +301,30 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 	const [form, setForm] = useState<Row>({});
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [offset, setOffset] = useState<number>(getDefaultOffsetHours());
+	const [placeOptions, setPlaceOptions] = useState<{ id: string; name: string }[]>([]);
+	const [typeOptions, setTypeOptions] = useState<{ id: string; name: string }[]>([]);
 
 	useEffect(() => {
 		if (open) {
 			setForm({});
 			setError(null);
+			setOffset(getDefaultOffsetHours());
 		}
+	}, [open, table]);
+
+	// Load FK options when adding plan
+	useEffect(() => {
+		const loadOptions = async () => {
+			if (!open || table !== 'plan') return;
+			const [{ data: places, error: perr }, { data: types, error: terr }] = await Promise.all([
+				supabase.from('place').select('id, name').order('id'),
+				supabase.from('type').select('id, name').order('id'),
+			]);
+			if (!perr && places) setPlaceOptions(places as any);
+			if (!terr && types) setTypeOptions(types as any);
+		};
+		loadOptions();
 	}, [open, table]);
 
 	if (!open) return null;
@@ -219,7 +335,8 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 			setError(null);
 			const payload: Row = { ...form };
 			if (payload.time && typeof payload.time === 'string' && payload.time.includes('T')) {
-				payload.time = fromLocalInput(payload.time);
+				const chosen = typeof payload.utc === 'number' ? payload.utc : offset;
+				payload.time = fromInputDateTimeWithOffset(payload.time, chosen);
 			}
 			const { error } = await supabase.from(table).insert(payload as any);
 			if (error) throw error;
@@ -232,6 +349,11 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 		}
 	};
 
+	const requiredOk = (() => {
+		if (table !== 'plan') return true;
+		return Boolean(form.tid) && Boolean(form.pid) && Boolean(form.time);
+	})();
+
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center">
 			<div className="absolute inset-0 bg-black/40" onClick={onClose} />
@@ -241,12 +363,58 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 					{schema.map(({ key, label, type, required }) => (
 						<div key={key}>
 							<label className="block text-sm font-medium text-gray-700 mb-1">{label}{required ? ' *' : ''}</label>
-							<input
-								className="w-full rounded-md border border-gray-300 p-2"
-								type={type}
-								value={type === 'datetime-local' ? (form[key] ?? '') : String(form[key] ?? '')}
-								onChange={(e) => setForm((f) => ({ ...f, [key]: type === 'number' ? Number(e.target.value) : e.target.value }))}
-							/>
+							{type === 'datetime-local' ? (
+								<div className="flex gap-2">
+									<input
+										className="w-full rounded-md border border-gray-300 p-2"
+										type="datetime-local"
+										value={String(form[key] ?? '')}
+										onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+									/>
+									<select
+										className="rounded-md border border-gray-300 p-2 text-sm"
+										value={Number((form as any)['utc'] ?? offset)}
+										onChange={(e) => setForm((f) => ({ ...f, utc: Number(e.target.value) }))}
+									>
+										{getOffsetOptions().map((h) => (
+											<option key={h} value={h}>{`UTC${h >= 0 ? '+' : ''}${h}`}</option>
+										))}
+									</select>
+								</div>
+							) : table === 'plan' && key === 'tid' ? (
+								<select
+									className="w-full rounded-md border border-gray-300 p-2"
+									value={String(form.tid ?? '')}
+									onChange={(e) => setForm((f) => ({ ...f, tid: e.target.value }))}
+								>
+									<option value="" disabled>Select Type…</option>
+									{typeOptions.map((opt) => (
+										<option key={opt.id} value={opt.id}>
+											{opt.id} — {opt.name}
+										</option>
+									))}
+								</select>
+							) : table === 'plan' && key === 'pid' ? (
+								<select
+									className="w-full rounded-md border border-gray-300 p-2"
+									value={String(form.pid ?? '')}
+									onChange={(e) => setForm((f) => ({ ...f, pid: e.target.value }))}
+								>
+									<option value="" disabled>Select Place…</option>
+									{placeOptions.map((opt) => (
+										<option key={opt.id} value={opt.id}>
+											{opt.id} — {opt.name}
+										</option>
+									))}
+								</select>
+							) : (
+								<input
+									className="w-full rounded-md border border-gray-300 p-2"
+									type={type}
+									value={String(form[key] ?? '')}
+									onChange={(e) => setForm((f) => ({ ...f, [key]: type === 'number' ? Number(e.target.value) : e.target.value }))}
+								/>
+							)}
 						</div>
 					))}
 					{error && <p className="text-sm text-red-600">{error}</p>}
@@ -255,7 +423,7 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 					<button className="px-4 py-2 rounded-md border border-gray-300" onClick={onClose} disabled={saving}>
 						Cancel
 					</button>
-					<button className="px-4 py-2 rounded-md bg-blue-600 text-white disabled:opacity-60" onClick={add} disabled={saving}>
+					<button className="px-4 py-2 rounded-md bg-blue-600 text-white disabled:opacity-60" onClick={add} disabled={saving || !requiredOk}>
 						{saving ? 'Adding…' : 'Add'}
 					</button>
 				</div>

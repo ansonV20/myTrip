@@ -83,6 +83,7 @@ function DirectionsMapComponent({ origin, destination }: DirectionsMapProps) {
     }
   };
 
+  // const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=${travelMode.toLowerCase()}`;
   const googleTransitUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=transit`;
 
   return (
