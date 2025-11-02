@@ -152,10 +152,10 @@ export function EditPlanDialog({ isOpen, item, onClose, onSaved }: EditPlanDialo
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* backdrop */}
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="fixed h-lvh w-full inset-0 bg-black/40" onClick={onClose} />
 
       {/* modal */}
-      <div className="relative z-10 w-full max-w-lg rounded-3xl bg-white p-6 shadow-xl">
+      <div className="z-10 w-full max-w-lg rounded-3xl bg-white p-6 shadow-xl">
         <h2 className="text-xl font-bold mb-4">{item.type === 'plan' ? 'Edit Plan' : 'Edit Transport'}</h2>
 
         <div className="space-y-4">
