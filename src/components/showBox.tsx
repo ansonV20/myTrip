@@ -14,10 +14,7 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
         <img src={item.place.img} alt={item.place.name} className="w-full h-48 object-cover rounded-xl" />
         <div>
           <div className='flex justify-between items-center w-full'>
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.place.map ? item.place.map : item.place.name)}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <div
               className="font-black text-2xl w-[80%] line-clamp-1"
             >
               {item.place.name}
@@ -29,7 +26,7 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
                 <FaEdit />
               </button>
             )}
-            </a>
+            </div>
             <div className='w-[20%] flex flex-col items-end gap-1'>
               <h1 className='text-nowrap text-end text-lg text-orange-700'>
                 {new Date(item.time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
@@ -37,7 +34,10 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
             </div>
           </div>
           <h2 className="text-md text-gray-500 line-clamp-1">{item.place.jpname}</h2>
-          <h2 className="text-md text-gray-500 line-clamp-1">{item.place.loc}</h2>
+          <a href={item.place.map ? item.place.map : item.place.name}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-md text-gray-500 line-clamp-1">{item.place.loc}</a>
         </div>
         {item.stay && <div className="flex items-center gap-2"><FaClock /><p className="text-sm">{(() => {
           const h = Math.floor(item.stay / 60);
