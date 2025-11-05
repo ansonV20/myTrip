@@ -51,6 +51,39 @@ export interface Plan {
 
 export type TimelineItem = Plan | Tran;
 
+// Upload an image file to Supabase Storage ('media' bucket) and return its public URL and path.
+// By default, uploads to path: `place/<placeId>/<timestamp>.<ext>`
+export const uploadPlaceImage = async (
+  file: File,
+  placeId: string
+): Promise<{ publicUrl: string; path: string }> => {
+  if (!file) throw new Error('No file provided');
+  if (!placeId) throw new Error('Place id is required to upload image');
+
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+  const fileName = `${Date.now()}.${ext}`;
+  const path = `place/${placeId}/${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('media')
+    .upload(path, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type || `image/${ext}`,
+    });
+  if (uploadError) {
+    console.error('Upload error:', uploadError);
+    throw uploadError;
+  }
+
+  const { data } = supabase.storage.from('media').getPublicUrl(path);
+  const publicUrl = data.publicUrl;
+  if (!publicUrl) {
+    throw new Error('Failed to resolve public URL for uploaded image. Ensure the bucket is public or use signed URLs.');
+  }
+  return { publicUrl, path };
+};
+
 export const getTimeline = async (): Promise<TimelineItem[]> => {
   // Load plan rows with related place details
   const { data: plans, error: planError } = await supabase

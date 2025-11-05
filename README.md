@@ -76,3 +76,16 @@ export default defineConfig([
 # myTrip
 # myTrip
 # myTrip
+
+## Image uploads to Supabase Storage
+
+This app can upload place images to Supabase Storage and store the public URL in the `place.img` column.
+
+- Create a bucket named `media` in Supabase Storage.
+- Make it public (or adjust the code to use signed URLs if you prefer a private bucket).
+- In the Database page (`/database`), when adding or editing a `place` row, use the Image field to pick a file and upload. The uploaded image URL is saved into `img`.
+
+Environment variables required (already used in the project):
+
+- `VITE_PUBLIC_SUPABASE_URL`
+- `VITE_PUBLIC_SUPABASE_ANON_KEY`

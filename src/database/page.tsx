@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, updatePlan, updateTran } from '../db';
+import { supabase, updatePlan, updateTran, uploadPlaceImage } from '../db';
 
 type TableName = 'plan' | 'tran' | 'place' | 'type';
 
@@ -20,8 +20,8 @@ function Card({ children }: { children: React.ReactNode }) {
 function FieldRow({ label, value }: { label: string; value: any }) {
 	return (
 		<div className="flex gap-2 text-sm">
-			<span className="font-semibold text-gray-700 min-w-28 truncate">{label}</span>
-			<span className="text-gray-600 break-words line-clamp-2">{String(value)}</span>
+			<span className="font-semibold text-gray-700 min-w-15 truncate">{label}</span>
+			<div className="text-gray-600 break-words line-clamp-100"><p>{String(value)}</p>{label === 'img' && <img src={String(value)} alt="img" className="w-full mt-2 rounded-xl object-contain" />}</div>
 		</div>
 	);
 }
@@ -80,6 +80,9 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 	const [offset] = useState<number>(getDefaultOffsetHours());
 	const [placeOptions, setPlaceOptions] = useState<{ id: string; name: string }[]>([]);
 	const [typeOptions, setTypeOptions] = useState<{ id: string; name: string }[]>([]);
+	const [imgFile, setImgFile] = useState<File | null>(null);
+	const [imgUploading, setImgUploading] = useState(false);
+	const [imgError, setImgError] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (row) {
@@ -227,20 +230,66 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 											</option>
 										))}
 									</select>
-										) : (
-											<input
-												className="w-full rounded-md border border-gray-300 p-2"
-												type={getInputType(k)}
-												value={String(form[k] ?? '')}
-												onChange={(e) =>
-													setForm((f) => ({
-														...f,
-														[k]: k === 'stay' || getInputType(k) === 'number' ? Number(e.target.value) : e.target.value,
-													}))
-												}
-												disabled={disabledKeys.has(k)}
-											/>
+								) : table === 'place' && k === 'img' ? (
+									<div className="space-y-2">
+										{form.img && (
+											<div>
+												<img src={String(form.img)} alt="preview" className="w-full max-h-48 object-contain rounded-md border" />
+												<a href={String(form.img)} target="_blank" rel="noreferrer" className="text-xs text-blue-600 underline">Open image</a>
+											</div>
 										)}
+										<input
+											className="w-full rounded-md border border-gray-300 p-2"
+											type="text"
+											placeholder="https://..."
+											value={String(form.img ?? '')}
+											onChange={(e) => setForm((f) => ({ ...f, img: e.target.value }))}
+										/>
+										<div className="flex items-center gap-2">
+											<input
+												className="flex-1 rounded-md border border-gray-300 p-2"
+												type="file"
+												accept="image/*"
+												onChange={(e) => setImgFile(e.target.files?.[0] ?? null)}
+											/>
+											<button
+												className="px-3 py-2 rounded-md bg-green-600 text-white disabled:opacity-60"
+												disabled={imgUploading || !imgFile || !row.id}
+												onClick={async () => {
+													if (!imgFile || !row.id) return;
+													try {
+														setImgError(null);
+														setImgUploading(true);
+														const { publicUrl } = await uploadPlaceImage(imgFile, String(row.id));
+														setForm((f) => ({ ...f, img: publicUrl }));
+														setImgFile(null);
+													} catch (e: any) {
+														setImgError(e?.message ?? 'Upload failed');
+													} finally {
+														setImgUploading(false);
+													}
+												}}
+											>
+												{imgUploading ? 'Uploading…' : 'Upload'}
+											</button>
+										</div>
+										{!row.id && <p className="text-xs text-gray-500">Enter and save a Place ID first to enable uploads</p>}
+										{imgError && <p className="text-xs text-red-600">{imgError}</p>}
+									</div>
+								) : (
+									<input
+										className="w-full rounded-md border border-gray-300 p-2"
+										type={getInputType(k)}
+										value={String(form[k] ?? '')}
+										onChange={(e) =>
+											setForm((f) => ({
+												...f,
+												[k]: k === 'stay' || getInputType(k) === 'number' ? Number(e.target.value) : e.target.value,
+											}))
+										}
+										disabled={disabledKeys.has(k)}
+									/>
+								)}
 						</div>
 					))}
 					{error && <p className="text-sm text-red-600">{error}</p>}
@@ -304,6 +353,9 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 	const [offset, setOffset] = useState<number>(getDefaultOffsetHours());
 	const [placeOptions, setPlaceOptions] = useState<{ id: string; name: string }[]>([]);
 	const [typeOptions, setTypeOptions] = useState<{ id: string; name: string }[]>([]);
+	const [imgFile, setImgFile] = useState<File | null>(null);
+	const [imgUploading, setImgUploading] = useState(false);
+	const [imgError, setImgError] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (open) {
@@ -407,6 +459,52 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 										</option>
 									))}
 								</select>
+							) : table === 'place' && key === 'img' ? (
+								<div className="space-y-2">
+									{form.img && (
+										<div>
+											<img src={String(form.img)} alt="preview" className="w-full max-h-48 object-contain rounded-md border" />
+											<a href={String(form.img)} target="_blank" rel="noreferrer" className="text-xs text-blue-600 underline">Open image</a>
+										</div>
+									)}
+									<input
+										className="w-full rounded-md border border-gray-300 p-2"
+										type="text"
+										placeholder="https://..."
+										value={String(form.img ?? '')}
+										onChange={(e) => setForm((f) => ({ ...f, img: e.target.value }))}
+									/>
+									<div className="flex items-center gap-2">
+										<input
+											className="flex-1 rounded-md border border-gray-300 p-2"
+											type="file"
+											accept="image/*"
+											onChange={(e) => setImgFile(e.target.files?.[0] ?? null)}
+										/>
+										<button
+											className="px-3 py-2 rounded-md bg-green-600 text-white disabled:opacity-60"
+											disabled={imgUploading || !imgFile || !form.id}
+											onClick={async () => {
+											if (!imgFile || !form.id) return;
+											try {
+												setImgError(null);
+												setImgUploading(true);
+												const { publicUrl } = await uploadPlaceImage(imgFile, String(form.id));
+												setForm((f) => ({ ...f, img: publicUrl }));
+												setImgFile(null);
+											} catch (e: any) {
+												setImgError(e?.message ?? 'Upload failed');
+											} finally {
+												setImgUploading(false);
+											}
+										}}
+										>
+											{imgUploading ? 'Uploading…' : 'Upload'}
+										</button>
+									</div>
+									{!form.id && <p className="text-xs text-gray-500">Enter an ID first to enable uploads</p>}
+									{imgError && <p className="text-xs text-red-600">{imgError}</p>}
+								</div>
 							) : (
 								<input
 									className="w-full rounded-md border border-gray-300 p-2"
@@ -583,8 +681,18 @@ export default function DatabasePage() {
 		setError(null);
 			try {
 				let q: any = supabase.from(table).select('*');
-				if (table === 'plan' || table === 'tran') {
+				// Order by id if the table has id; otherwise by time
+				if (table === 'plan') {
+					// plan has no id column; order by time
 					q = q.order('time', { ascending: true });
+				} else if (table === 'tran') {
+					// tran has id and time; primary by id, fallback/time as secondary
+					q = q
+						.order('id', { ascending: true, nullsFirst: false })
+						.order('time', { ascending: true });
+				} else if (table === 'place' || table === 'type') {
+					// both have id; simple id ordering
+					q = q.order('id', { ascending: true, nullsFirst: false });
 				}
 				q = q.limit(500);
 				const { data, error } = await q;
