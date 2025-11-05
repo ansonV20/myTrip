@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getTimeline, type TimelineItem } from './db';
+import { getTimeline, type TimelineItem, type Plan } from './db';
 import { ShowBox } from './components/showBox';
 import { DirectionsMap } from './components/DirectionsMap';
 import { EditPlanDialog } from './components/EditPlanDialog';
 import { AddPlanDialog } from './components/AddPlanDialog';
+import { MultiDestinationMapLink } from './components/MultiDestinationMapLink';
 import { FaDatabase, FaCheck } from 'react-icons/fa';
 import { MdEdit } from "react-icons/md";
 import './App.css';
@@ -132,18 +133,49 @@ function App() {
       <div className="timeline gap-10 flex flex-col">
         {dayGroups.map((group) => {
           const items = group.items;
+          const locationGroups: string[][] = [];
+          let currentGroup: string[] = [];
+
+          for (const item of items) {
+            if (item.type === 'plan') {
+              // Plan type from db.ts has 'tid'
+              const plan = item as Plan;
+              if (plan.tid === '0005') {
+                if (currentGroup.length > 0) {
+                  locationGroups.push(currentGroup);
+                }
+                currentGroup = [];
+              } else if (plan.place?.loc) {
+                currentGroup.push(plan.place.loc);
+              }
+            }
+          }
+
+          if (currentGroup.length > 0) {
+            locationGroups.push(currentGroup);
+          }
+
           return (
             <div key={group.day} className="flex flex-col gap-6 ">
               {/* Optional day header when viewing all */}
-              {selectedDay === 'all' && (
-                <div className='flex flex-row w-full items-center gap-4'>
-                  <h2 className="text-xl font-bold text-gray-700">
-                    {(() => {
-                      const [, m, d] = group.day.split('-');
-                      return `${d}/${m}`;
-                    })()}
-                  </h2>
-                  <hr className='text-gray-700 border-dashed w-full' />
+              {selectedDay && (
+                <div className='flex flex-col w-full gap-4'>
+                  <div className='flex flex-row w-full items-center gap-4'>
+                    <h2 className="text-xl font-bold text-gray-700 text-nowrap">
+                      {(() => {
+                        const [y, m, d] = group.day.split('-');
+                        const date = new Date(Number(y), Number(m) - 1, Number(d));
+                        const weekday = date.toLocaleDateString(undefined, { weekday: 'short' }); // e.g. "Mon"
+                        return `${d}/${m} · ${weekday}`;
+                      })()}
+                    </h2>
+                    <hr className='text-gray-700 border-dashed w-full' />
+                  </div>
+                  {locationGroups.map((locations, index) => (
+                    <div key={index} className="ml-2">
+                      <MultiDestinationMapLink locations={locations} />
+                    </div>
+                  ))}
                 </div>
               )}
 

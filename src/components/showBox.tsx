@@ -55,23 +55,27 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
               rel="noopener noreferrer"
               className="text-md text-gray-500 hover:underline active:underline">{item.place.loc}</a>
         </div>
-        {item.stay && (
+        
           <div className="flex items-center gap-4">
+            {item.stay && (
+            <>
             <FaClock />
             <p className="text-sm">{(() => {
               const h = Math.floor(item.stay / 60);
               const m = item.stay % 60;
               return h ? (m ? `${h} h ${m} ${m > 1 ? 'mins' : 'min'}` : `${h} h`) : `${m} ${m > 1 ? 'mins' : 'min'}`;
             })()}</p>
+            </>
+            )}
             {item.typeName && (
               <span className="text-sm font-bold text-orange-700">{item.typeName}</span>
             )}
           </div>
-        )}
+
         {(item.place.info || item.info) && <hr className='text-orange-700' />}
         <div className='gap-1 flex flex-col'>
-          {item.place.info && <p className={`text-sm text-white  ${item.typeName === 'hotel' ? 'bg-gray-700' : 'bg-gray-500'} p-3 rounded-xl line-clamp-3`}>{item.place.info.split('\\n').map((line, i) => <span key={i}>{line}<br /></span>)}</p>}
-          {item.info && <p className={`text-sm text-white  ${item.typeName === 'hotel' ? 'bg-gray-700' : 'bg-gray-500'} p-3 rounded-xl line-clamp-3`}>{item.info.split('\\n').map((line, i) => <span key={i}>{line}<br /></span>)}</p>}
+          {item.place.info && <p className={`text-sm text-white  ${item.typeName === 'hotel' ? 'bg-gray-700' : 'bg-gray-500'} p-3 rounded-xl`}>{item.place.info.split('\\n').map((line, i) => <span key={i}>{line}<br /></span>)}</p>}
+          {item.info && <p className={`text-sm text-white  ${item.typeName === 'hotel' ? 'bg-gray-700' : 'bg-gray-500'} p-3 rounded-xl`}>{item.info.split('\\n').map((line, i) => <span key={i}>{line}<br /></span>)}</p>}
         </div>
       </div>
     );
@@ -112,7 +116,7 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
           return h ? (m ? `${h} h ${m} ${m > 1 ? 'mins' : 'min'}` : `${h} h`) : `${m} ${m > 1 ? 'mins' : 'min'}`;
         })()}</p></div>}
       {item.info && <hr className='text-orange-700' />}
-      {item.info && <p className="text-sm text-white bg-gray-500 p-3 rounded-xl line-clamp-3">{item.info.split('\\n').map((line, i) => <span key={i}>{line}<br /></span>)}</p>}
+      {item.info && <p className="text-sm text-white bg-gray-500 p-3 rounded-xl">{item.info.split('\\n').map((line, i) => <span key={i}>{line}<br /></span>)}</p>}
     </div>
   );
 }
