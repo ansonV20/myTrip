@@ -1,5 +1,3 @@
-import type { Place } from '../db';
-
 export const getBrowserLocation = (): Promise<{ lat: number; lng: number }> => {
 	return new Promise((resolve, reject) => {
 		if (!navigator.geolocation) {
