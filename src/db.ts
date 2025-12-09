@@ -51,6 +51,19 @@ export interface Plan {
 
 export type TimelineItem = Plan | Tran;
 
+export const getPlaces = async (): Promise<Place[]> => {
+  const { data, error } = await supabase
+    .from('place')
+    .select('id, name, jpname, loc, img, info, map');
+
+  if (error) {
+    console.error('Error fetching places:', error);
+    return [];
+  }
+
+  return (data ?? []) as Place[];
+};
+
 // Upload an image file to Supabase Storage ('media' bucket) and return its public URL and path.
 // By default, uploads to path: `place/<placeId>/<timestamp>.<ext>`
 export const uploadPlaceImage = async (
