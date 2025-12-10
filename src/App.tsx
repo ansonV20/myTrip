@@ -6,6 +6,7 @@ import { ShowBox } from './components/showBox';
 import { DirectionsMap } from './components/DirectionsMap';
 import { EditPlanDialog } from './components/EditPlanDialog';
 import { AddPlanDialog } from './components/AddPlanDialog';
+import { ShowWeather } from './components/showWeather';
 import { MultiDestinationMapLink } from './components/MultiDestinationMapLink';
 import { getBrowserLocation, getDistanceFromGoogle } from './components/showPlaceLocation';
 import { FaDatabase, FaCheck } from 'react-icons/fa';
@@ -15,11 +16,17 @@ import { FaSnowflake } from "react-icons/fa";
 import './App.css';
 
 interface weatherData {
-  hourly: {
-    time: Date[];
-    temperature_2m: Float32Array | null;
-    rain: Float32Array | null;
-    snowfall: Float32Array | null;
+  current?: {
+    time: Date;
+    temperature_2m: number;
+    rain: number;
+    snowfall: number;
+    apparent_temperature: number;
+  };
+  hourly?: {
+    temperature_2m: number[];
+    rain: number[];
+    snowfall: number[];
   };
 }
 
@@ -36,6 +43,7 @@ function App() {
   const [nearDistances, setNearDistances] = useState<Record<string, number>>({});
   const [originPlaceId, setOriginPlaceId] = useState<string | null>(null);
   const [weather, setWeather] = useState<weatherData | null>(null);
+  const [detailWeather, setDetailWeather] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchWeather = async () => {
@@ -183,16 +191,25 @@ function App() {
     });
   }, [timeline, days, selectedDay, nearMode, nearPlaces, nearDistances]);
 
+
+
+
+
+
+
+
+
+
   return (
     <div className="container mx-auto p-4">
       <div className="flex flex-col items-start mb-4">
         <div className='flex flex-row items-center justify-between gap-4'>
           <h1 className="text-[50px] font-black">Osaka Trip</h1>
-          <div>
+          <button onClick={() => setDetailWeather((v) => !v)} className="">
             <p className={weather?.hourly?.temperature_2m?.[0] != null && weather.hourly.temperature_2m[0] <= 0 ? 'text-orange-700' : weather?.hourly?.temperature_2m?.[0] != null && weather.hourly.temperature_2m[0] < 10 ? 'text-blue-800' : weather?.hourly?.temperature_2m?.[0] != null && weather.hourly.temperature_2m[0] < 15 ? 'text-blue-500' : ''}>{weather?.hourly?.temperature_2m?.[0] != null && `${weather.hourly.temperature_2m[0].toFixed(1)}°C`}</p>
             <p>{weather?.hourly?.rain?.[0] != null && weather.hourly.rain[0] >= 1 && <IoMdRainy />}</p>
             <p>{weather?.hourly?.snowfall?.[0] != null && weather.hourly.snowfall[0] > 0 && <FaSnowflake />}</p>
-          </div>
+          </button>
         </div>
         <div className="flex flex-row items-center justify-start gap-2">
           <button
@@ -430,6 +447,13 @@ function App() {
         onClose={() => setAddingDay(null)}
         onSaved={refreshTimeline}
       />
+
+      {detailWeather && weather && (
+        <ShowWeather 
+        data={weather} 
+        onClose={() => setDetailWeather(false)}
+        />
+      )}
     </div>
   );
 }

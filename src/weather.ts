@@ -1,53 +1,91 @@
-import { fetchWeatherApi } from "openmeteo";
+// Tomorrow.io weather fetch for Osaka
 
-export const weatherData = async () => {
+export interface WeatherData {
+  current?: {
+    time: Date;
+    temperature_2m: number;
+    rain: number;
+    snowfall: number;
+    apparent_temperature: number;
+  };
+  hourly?: {
+    temperature_2m: number[];
+    rain: number[];
+    snowfall: number[];
+  };
+}
 
-    const params = {
-        latitude: 34.6938,
-        longitude: 135.5011,
-        hourly: ["temperature_2m", "rain", "snowfall"],
-        models: "jma_seamless",
-        timezone: "auto",
-        forecast_days: 1,
-    };
-    const url = "https://api.open-meteo.com/v1/forecast";
-    const responses = await fetchWeatherApi(url, params);
+const OSAKA_LAT = 34.6938;
+const OSAKA_LON = 135.5011;
 
-    // Process first location. Add a for-loop for multiple locations or weather models
-    const response = responses[0];
+// Reads Tomorrow.io API key from Vite env: VITE_TOMORROW_API_KEY
+const API_KEY = import.meta.env.VITE_TOMORROW_API_KEY as string | undefined;
 
-    // Attributes for timezone and location
-    const latitude = response.latitude();
-    const longitude = response.longitude();
-    const elevation = response.elevation();
-    const timezone = response.timezone();
-    const timezoneAbbreviation = response.timezoneAbbreviation();
-    const utcOffsetSeconds = response.utcOffsetSeconds();
+export const weatherData = async (): Promise<WeatherData | null> => {
+  if (!API_KEY) {
+    console.error("Missing VITE_TOMORROW_API_KEY env var for Tomorrow.io");
+    return null;
+  }
 
-    console.log(
-        `\nCoordinates: ${latitude}°N ${longitude}°E`,
-        `\nElevation: ${elevation}m asl`,
-        `\nTimezone: ${timezone} ${timezoneAbbreviation}`,
-        `\nTimezone difference to GMT+0: ${utcOffsetSeconds}s`,
-    );
+  const params = new URLSearchParams({
+    location: `${OSAKA_LAT},${OSAKA_LON}`,
+    apikey: API_KEY,
+    units: "metric",
+    timesteps: "1h",
+    fields: [
+      "temperature",
+      "precipitationIntensity",
+      "snowAccumulation",
+      "temperatureApparent",
+    ].join(","),
+  });
 
-    const hourly = response.hourly()!;
+  const url = `https://api.tomorrow.io/v4/weather/forecast?${params.toString()}`;
 
-    // Note: The order of weather variables in the URL query and the indices below need to match!
-    const weatherData = {
-        hourly: {
-            time: Array.from(
-                { length: (Number(hourly.timeEnd()) - Number(hourly.time())) / hourly.interval() }, 
-                (_, i) => new Date((Number(hourly.time()) + i * hourly.interval() + utcOffsetSeconds) * 1000)
-            ),
-            temperature_2m: hourly.variables(0)!.valuesArray(),
-            rain: hourly.variables(1)!.valuesArray(),
-            snowfall: hourly.variables(2)!.valuesArray(),
-        },
-    };
+  const res = await fetch(url);
+  if (!res.ok) {
+    console.error("Tomorrow.io request failed", res.status, res.statusText);
+    return null;
+  }
 
-    // The 'weatherData' object now contains a simple structure, with arrays of datetimes and weather information
-    console.log("\nHourly data:\n", weatherData.hourly)
+  const json = await res.json();
 
-    return weatherData;
+  const hourlyArray: any[] = json?.timelines?.hourly ?? [];
+  if (!Array.isArray(hourlyArray) || hourlyArray.length === 0) {
+    console.error("Tomorrow.io hourly data missing", json);
+    return null;
+  }
+
+  // Use first hour as "current" and also build simple hourly arrays
+  const first = hourlyArray[0];
+  const values = first?.values ?? {};
+
+  const hourlyTemps: number[] = [];
+  const hourlyRain: number[] = [];
+  const hourlySnow: number[] = [];
+
+  for (const h of hourlyArray) {
+    const v = h.values ?? {};
+    hourlyTemps.push(Number(v.temperature ?? NaN));
+    hourlyRain.push(Number(v.precipitationIntensity ?? NaN));
+    hourlySnow.push(Number(v.snowAccumulation ?? NaN));
+  }
+
+  const data: WeatherData = {
+    current: {
+      time: new Date(first.time),
+      temperature_2m: Number(values.temperature ?? NaN),
+      rain: Number(values.precipitationIntensity ?? 0),
+      snowfall: Number(values.snowAccumulation ?? 0),
+      apparent_temperature: Number(values.temperatureApparent ?? values.temperature ?? NaN),
+    },
+    hourly: {
+      temperature_2m: hourlyTemps,
+      rain: hourlyRain,
+      snowfall: hourlySnow,
+    },
+  };
+
+  console.log("Tomorrow.io Osaka weather", data);
+  return data;
 };
