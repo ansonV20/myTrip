@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getTimeline, getPlaces, type TimelineItem, type Plan, type Place } from './db';
-import { weatherData } from './weather';
+import { weatherData, type WeatherData } from './weather';
 import { ShowBox } from './components/showBox';
 import { DirectionsMap } from './components/DirectionsMap';
 import { EditPlanDialog } from './components/EditPlanDialog';
@@ -15,20 +15,7 @@ import { IoMdRainy } from "react-icons/io";
 import { FaSnowflake } from "react-icons/fa";
 import './App.css';
 
-interface weatherData {
-  current?: {
-    time: Date;
-    temperature_2m: number;
-    rain: number;
-    snowfall: number;
-    apparent_temperature: number;
-  };
-  hourly?: {
-    temperature_2m: number[];
-    rain: number[];
-    snowfall: number[];
-  };
-}
+type WeatherState = WeatherData | null;
 
 function App() {
   const navigate = useNavigate();
@@ -42,7 +29,7 @@ function App() {
   const [nearMode, setNearMode] = useState(false);
   const [nearDistances, setNearDistances] = useState<Record<string, number>>({});
   const [originPlaceId, setOriginPlaceId] = useState<string | null>(null);
-  const [weather, setWeather] = useState<weatherData | null>(null);
+  const [weather, setWeather] = useState<WeatherState>(null);
   const [detailWeather, setDetailWeather] = useState<boolean>(false);
 
   useEffect(() => {
@@ -205,10 +192,44 @@ function App() {
       <div className="flex flex-col items-start mb-4">
         <div className='flex flex-row items-center justify-between gap-4'>
           <h1 className="text-[50px] font-black">Osaka Trip</h1>
-          <button onClick={() => setDetailWeather((v) => !v)} className="">
-            <p className={weather?.hourly?.temperature_2m?.[0] != null && weather.hourly.temperature_2m[0] <= 0 ? 'text-orange-700' : weather?.hourly?.temperature_2m?.[0] != null && weather.hourly.temperature_2m[0] < 10 ? 'text-blue-800' : weather?.hourly?.temperature_2m?.[0] != null && weather.hourly.temperature_2m[0] < 15 ? 'text-blue-500' : ''}>{weather?.hourly?.temperature_2m?.[0] != null && `${weather.hourly.temperature_2m[0].toFixed(1)}°C`}</p>
-            <p>{weather?.hourly?.rain?.[0] != null && weather.hourly.rain[0] >= 1 && <IoMdRainy />}</p>
-            <p>{weather?.hourly?.snowfall?.[0] != null && weather.hourly.snowfall[0] > 0 && <FaSnowflake />}</p>
+          <button onClick={() => setDetailWeather((v) => !v)} className="flex flex-col items-end text-sm">
+            {/* Temperature (current if available, otherwise first hourly) */}
+            <p
+              className={
+                weather?.current?.temperature != null && weather.current.temperature <= 0
+                  ? 'text-orange-700'
+                  : weather?.current?.temperature != null && weather.current.temperature < 10
+                  ? 'text-blue-800'
+                  : weather?.current?.temperature != null && weather.current.temperature < 15
+                  ? 'text-blue-500'
+                  : ''
+              }
+            >
+              {weather?.current?.temperature != null
+                ? `${weather.current.temperature.toFixed(1)}°C`
+                : weather?.hourly?.temperature?.[0] != null
+                ? `${weather.hourly.temperature[0].toFixed(1)}°C`
+                : ''}
+            </p>
+
+            {/* Icons based on precipitation type and existing rain/snow values */}
+            <div className="flex flex-row items-center gap-1">
+              {weather?.current?.precipitationType != null && (() => {
+                const t = Math.round(weather.current!.precipitationType);
+                if (t === 1) return <IoMdRainy />;
+                if (t === 2) return <FaSnowflake />;
+                if (t === 3) return <IoMdRainy />; // freezing rain -> rain icon
+                if (t === 4) return <FaSnowflake />; // sleet -> snow icon
+                return null;
+              })()}
+              {/* fallback to original icons if type not available */}
+              {weather?.current?.precipitationType == null && (
+                <>
+                  {weather?.current?.rain != null && weather.current.rain >= 1 && <IoMdRainy />}
+                  {weather?.current?.snowfall != null && weather.current.snowfall > 0 && <FaSnowflake />}
+                </>
+              )}
+            </div>
           </button>
         </div>
         <div className="flex flex-row items-center justify-start gap-2">

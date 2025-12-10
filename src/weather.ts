@@ -3,15 +3,20 @@
 export interface WeatherData {
   current?: {
     time: Date;
-    temperature_2m: number;
-    rain: number;
-    snowfall: number;
-    apparent_temperature: number;
+    temperature: number;
+    tempRange: [number, number];
+    rain: number; // mm/h
+    snowfall: number; // mm
+    apparentTemperature: number;
+    precipitationProbability: number; // %
+    precipitationType: number; // 0-4 as per Tomorrow.io docs
   };
   hourly?: {
-    temperature_2m: number[];
+    temperature: number[];
     rain: number[];
     snowfall: number[];
+    precipitationProbability: number[];
+    precipitationType: number[];
   };
 }
 
@@ -34,9 +39,11 @@ export const weatherData = async (): Promise<WeatherData | null> => {
     timesteps: "1h",
     fields: [
       "temperature",
-      "precipitationIntensity",
-      "snowAccumulation",
       "temperatureApparent",
+      "precipitationIntensity",
+      "precipitationProbability",
+      "snowIntensity",
+      "precipitationType",
     ].join(","),
   });
 
@@ -63,26 +70,38 @@ export const weatherData = async (): Promise<WeatherData | null> => {
   const hourlyTemps: number[] = [];
   const hourlyRain: number[] = [];
   const hourlySnow: number[] = [];
+  const hourlyPrecipProb: number[] = [];
+  const hourlyPrecipType: number[] = [];
 
   for (const h of hourlyArray) {
     const v = h.values ?? {};
     hourlyTemps.push(Number(v.temperature ?? NaN));
     hourlyRain.push(Number(v.precipitationIntensity ?? NaN));
     hourlySnow.push(Number(v.snowAccumulation ?? NaN));
+    hourlyPrecipProb.push(Number(v.precipitationProbability ?? NaN));
+    hourlyPrecipType.push(Number(v.precipitationType ?? NaN));
   }
+
+  const minTemp = Math.min(...hourlyTemps.filter(t => !isNaN(t)));
+  const maxTemp = Math.max(...hourlyTemps.filter(t => !isNaN(t)));
 
   const data: WeatherData = {
     current: {
       time: new Date(first.time),
-      temperature_2m: Number(values.temperature ?? NaN),
+      temperature: Number(values.temperature ?? NaN),
+      tempRange: [minTemp, maxTemp],
       rain: Number(values.precipitationIntensity ?? 0),
       snowfall: Number(values.snowAccumulation ?? 0),
-      apparent_temperature: Number(values.temperatureApparent ?? values.temperature ?? NaN),
+      apparentTemperature: Number(values.temperatureApparent ?? values.temperature ?? NaN),
+      precipitationProbability: Number(values.precipitationProbability ?? NaN),
+      precipitationType: Number(values.precipitationType ?? NaN),
     },
     hourly: {
-      temperature_2m: hourlyTemps,
+      temperature: hourlyTemps,
       rain: hourlyRain,
       snowfall: hourlySnow,
+      precipitationProbability: hourlyPrecipProb,
+      precipitationType: hourlyPrecipType,
     },
   };
 

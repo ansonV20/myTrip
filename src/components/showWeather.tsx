@@ -34,12 +34,20 @@ export function ShowWeather({ data, onClose }: ShowWeatherProps) {
             </div>
             <div>
               <p className="text-gray-500">Temperature</p>
-              <p>{current.temperature_2m.toFixed(1)}°C</p>
+              <p>{current.temperature.toFixed(1)}°C</p>
             </div>
             <div>
               <p className="text-gray-500">Feels like</p>
-              <p>{current.apparent_temperature.toFixed(1)}°C</p>
+              <p>{current.apparentTemperature.toFixed(1)}°C</p>
             </div>
+            {Array.isArray(current.tempRange) && current.tempRange.length >= 2 && (
+              <div>
+                <p className="text-gray-500">Temperature Range</p>
+                <p>
+                  {current.tempRange[0].toFixed(1)}°C - {current.tempRange[1].toFixed(1)}°C
+                </p>
+              </div>
+            )}
             <div>
               <p className="text-gray-500">Rain intensity</p>
               <p>{current.rain.toFixed(2)} mm/h</p>
@@ -48,21 +56,45 @@ export function ShowWeather({ data, onClose }: ShowWeatherProps) {
               <p className="text-gray-500">Snow accumulation</p>
               <p>{current.snowfall.toFixed(2)} mm</p>
             </div>
+            <div>
+              <p className="text-gray-500">Precipitation prob.</p>
+              <p>{Number.isFinite(current.precipitationProbability) ? `${current.precipitationProbability.toFixed(0)}%` : "-"}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Precipitation type</p>
+              <p>
+                {(() => {
+                  switch (Math.round(current.precipitationType ?? NaN)) {
+                    case 0:
+                      return "None";
+                    case 1:
+                      return "Rain";
+                    case 2:
+                      return "Snow";
+                    case 3:
+                      return "Freezing Rain";
+                    case 4:
+                      return "Ice";
+                    default:
+                      return "-";
+                  }
+                })()}
+              </p>
+            </div>
           </div>
         )}
 
         {hourly && (
           <div className="text-sm">
             <h3 className="font-medium mb-2">Next hours</h3>
-            <div className="grid grid-cols-3 gap-2 mb-1 text-gray-500 text-xs">
+            <div className="grid grid-cols-4 gap-2 mb-1 text-gray-500 text-xs">
               <span>Hour</span>
               <span>Temp (°C)</span>
               <span>Rain / Snow</span>
+              <span>Type</span>
             </div>
             <div className="max-h-52 overflow-y-auto border-t border-gray-100 pt-1">
-              {hourly.temperature_2m.map((temp, idx) => {
-                const rain = hourly.rain?.[idx];
-                const snow = hourly.snowfall?.[idx];
+              {hourly.temperature.map((temp, idx) => {
 
                 const now = current?.time ?? new Date();
                 const hourDate = new Date(now.getTime() + idx * 60 * 60 * 1000);
@@ -70,7 +102,7 @@ export function ShowWeather({ data, onClose }: ShowWeatherProps) {
                 return (
                   <div
                     key={idx}
-                    className="grid grid-cols-3 gap-2 py-1 border-b border-gray-50"
+                    className="grid grid-cols-4 gap-2 py-1 border-b border-gray-50 text-xs"
                   >
                     <span className="text-xs text-gray-600">
                       {hourDate.toLocaleTimeString(undefined, {
@@ -79,13 +111,29 @@ export function ShowWeather({ data, onClose }: ShowWeatherProps) {
                       })}
                     </span>
                     <span>{Number.isFinite(temp) ? temp.toFixed(1) : "-"}</span>
-                    <span className="text-xs">
-                      {rain != null && Number.isFinite(rain)
-                        ? `${rain.toFixed(2)} mm`
+                    <span>
+                      {hourly.rain && hourly.snowfall
+                        ? `${Number.isFinite(hourly.rain[idx]) ? hourly.rain[idx].toFixed(2) : "0.00"} / ${Number.isFinite(hourly.snowfall[idx]) ? hourly.snowfall[idx].toFixed(2) : "0.00"}`
                         : "-"}
-                      {" / "}
-                      {snow != null && Number.isFinite(snow)
-                        ? `${snow.toFixed(2)} mm`
+                    </span>
+                    <span>
+                      {hourly.precipitationType
+                        ? (() => {
+                            switch (Math.round(hourly.precipitationType[idx] ?? NaN)) {
+                              case 0:
+                                return "None";
+                              case 1:
+                                return "Rain";
+                              case 2:
+                                return "Snow";
+                              case 3:
+                                return "Freezing Rain";
+                              case 4:
+                                return "Ice Pellets";
+                              default:
+                                return "-";
+                            }
+                          })()
                         : "-"}
                     </span>
                   </div>
