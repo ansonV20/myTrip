@@ -37,11 +37,11 @@ function App() {
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
 
   useEffect(() => {
-    // Avoid double-run in React 18 StrictMode (dev)
-    let ran = (window as any).__WEATHER_FETCH_RAN__;
-    if (ran) return;
-    (window as any).__WEATHER_FETCH_RAN__ = true;
-    
+    // // Avoid double-run in React 18 StrictMode (dev)
+    // let ran = (window as any).__WEATHER_FETCH_RAN__;
+    // if (ran) return;
+    // (window as any).__WEATHER_FETCH_RAN__ = true;
+
     const fetchWeather = async () => {
       try {
         const data = await weatherData();

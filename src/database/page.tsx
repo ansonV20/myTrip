@@ -353,6 +353,7 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 	const [offset, setOffset] = useState<number>(getDefaultOffsetHours());
 	const [placeOptions, setPlaceOptions] = useState<{ id: string; name: string }[]>([]);
 	const [typeOptions, setTypeOptions] = useState<{ id: string; name: string }[]>([]);
+	const [placeIdOptions, setPlaceIdOptions] = useState<string[]>([]);
 	const [imgFile, setImgFile] = useState<File | null>(null);
 	const [imgUploading, setImgUploading] = useState(false);
 	const [imgError, setImgError] = useState<string | null>(null);
@@ -365,16 +366,37 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 		}
 	}, [open, table]);
 
-	// Load FK options when adding plan
+	// Load FK options when adding plan, and compute allowed place IDs when adding place
 	useEffect(() => {
 		const loadOptions = async () => {
-			if (!open || table !== 'plan') return;
-			const [{ data: places, error: perr }, { data: types, error: terr }] = await Promise.all([
-				supabase.from('place').select('id, name').order('id'),
-				supabase.from('type').select('id, name').order('id'),
-			]);
-			if (!perr && places) setPlaceOptions(places as any);
-			if (!terr && types) setTypeOptions(types as any);
+			if (!open) return;
+			if (table === 'plan') {
+				const [{ data: places, error: perr }, { data: types, error: terr }] = await Promise.all([
+					supabase.from('place').select('id, name').order('id'),
+					supabase.from('type').select('id, name').order('id'),
+				]);
+				if (!perr && places) setPlaceOptions(places as any);
+				if (!terr && types) setTypeOptions(types as any);
+			} else if (table === 'place') {
+				const { data: places, error: perr } = await supabase.from('place').select('id').order('id');
+				if (!perr && places) {
+					const existing: number[] = (places as any)
+						.map((p: any) => Number(p.id))
+						.filter((n: number) => !Number.isNaN(n) && n >= 1 && n <= 9999);
+					let lastNormal = 0;
+					let lastHigh = 8999;
+					for (const n of existing) {
+						if (n < 9000 && n > lastNormal) lastNormal = n;
+						if (n >= 9000 && n > lastHigh) lastHigh = n;
+					}
+					const nextNormal = lastNormal + 1 <= 8999 ? String(lastNormal + 1).padStart(4, '0') : null;
+					const nextHigh = lastHigh + 1 <= 9999 ? String(lastHigh + 1).padStart(4, '0') : null;
+					const options: string[] = [];
+					if (nextNormal) options.push(nextNormal);
+					if (nextHigh && nextHigh !== nextNormal) options.push(nextHigh);
+					setPlaceIdOptions(options);
+				}
+			}
 		};
 		loadOptions();
 	}, [open, table]);
@@ -409,7 +431,7 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center">
 			<div className="absolute inset-0 bg-black/40" onClick={onClose} />
-			<div className="relative z-10 w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl">
+			<div className="relative z-10 w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
 				<h2 className="text-xl font-bold mb-4">Add {table}</h2>
 				<div className="space-y-3">
 					{schema.map(({ key, label, type, required }) => (
@@ -459,52 +481,80 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 										</option>
 									))}
 								</select>
-							) : table === 'place' && key === 'img' ? (
-								<div className="space-y-2">
-									{form.img && (
-										<div>
-											<img src={String(form.img)} alt="preview" className="w-full max-h-48 object-contain rounded-md border" />
-											<a href={String(form.img)} target="_blank" rel="noreferrer" className="text-xs text-blue-600 underline">Open image</a>
-										</div>
-									)}
-									<input
+								) : table === 'place' && key === 'id' ? (
+									<select
 										className="w-full rounded-md border border-gray-300 p-2"
-										type="text"
-										placeholder="https://..."
-										value={String(form.img ?? '')}
-										onChange={(e) => setForm((f) => ({ ...f, img: e.target.value }))}
-									/>
-									<div className="flex items-center gap-2">
+										value={String(form.id ?? '')}
+										onChange={(e) => setForm((f) => ({ ...f, id: e.target.value }))}
+									>
+										<option value="" disabled>
+											Select ID…
+										</option>
+										{placeIdOptions.map((id) => (
+											<option key={id} value={id}>
+												{id}
+											</option>
+										))}
+									</select>
+								) : table === 'place' && key === 'img' ? (
+									<div className="space-y-2">
+										{form.img && (
+											<div className="max-h-48 overflow-hidden rounded-md border bg-black/5 flex items-center justify-center">
+												<img
+													src={String(form.img)}
+													alt="preview"
+													className="max-h-48 w-auto max-w-full object-contain"
+												/>
+											</div>
+										)}
+										{form.img && (
+											<a
+												href={String(form.img)}
+												target="_blank"
+												rel="noreferrer"
+												className="text-xs text-blue-600 underline"
+											>
+												Open image
+											</a>
+										)}
 										<input
-											className="flex-1 rounded-md border border-gray-300 p-2"
-											type="file"
-											accept="image/*"
-											onChange={(e) => setImgFile(e.target.files?.[0] ?? null)}
+											className="w-full rounded-md border border-gray-300 p-2"
+											type="text"
+											placeholder="https://..."
+											value={String(form.img ?? '')}
+											onChange={(e) => setForm((f) => ({ ...f, img: e.target.value }))}
 										/>
-										<button
-											className="px-3 py-2 rounded-md bg-green-600 text-white disabled:opacity-60"
-											disabled={imgUploading || !imgFile || !form.id}
-											onClick={async () => {
-											if (!imgFile || !form.id) return;
-											try {
-												setImgError(null);
-												setImgUploading(true);
-												const { publicUrl } = await uploadPlaceImage(imgFile, String(form.id));
-												setForm((f) => ({ ...f, img: publicUrl }));
-												setImgFile(null);
-											} catch (e: any) {
-												setImgError(e?.message ?? 'Upload failed');
-											} finally {
-												setImgUploading(false);
-											}
-										}}
-										>
-											{imgUploading ? 'Uploading…' : 'Upload'}
-										</button>
+										<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+											<input
+												className="w-full sm:flex-1 rounded-md border border-gray-300 p-2 text-xs sm:text-sm"
+												type="file"
+												accept="image/*"
+												onChange={(e) => setImgFile(e.target.files?.[0] ?? null)}
+											/>
+											<button
+												className="px-3 py-2 rounded-md bg-green-600 text-white disabled:opacity-60 whitespace-nowrap text-sm"
+												disabled={imgUploading || !imgFile || !form.id}
+												onClick={async () => {
+												if (!imgFile || !form.id) return;
+												try {
+													setImgError(null);
+													setImgUploading(true);
+													const { publicUrl } = await uploadPlaceImage(imgFile, String(form.id));
+													setForm((f) => ({ ...f, img: publicUrl }));
+													setImgFile(null);
+												} catch (e: any) {
+													setImgError(e?.message ?? 'Upload failed');
+												} finally {
+													setImgUploading(false);
+												}
+											}}
+											>
+												{imgUploading ? 'Uploading…' : 'Upload'}
+											</button>
+										</div>
+										{!form.id && <p className="text-xs text-gray-500">Enter an ID first to enable uploads</p>}
+										{imgError && <p className="text-xs text-red-600">{imgError}</p>}
 									</div>
-									{!form.id && <p className="text-xs text-gray-500">Enter an ID first to enable uploads</p>}
-									{imgError && <p className="text-xs text-red-600">{imgError}</p>}
-								</div>
 							) : (
 								<input
 									className="w-full rounded-md border border-gray-300 p-2"
