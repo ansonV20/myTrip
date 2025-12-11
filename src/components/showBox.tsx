@@ -49,11 +49,11 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
               <p className='text-xs'>{formatOffsetLabel((item as any).utc).split('UTC')[1]}</p>
             </div>
           </div>
-          <h2 className="text-md text-gray-500">{item.place.jpname}</h2>
+          <h2 className="text-sm text-gray-500">{item.place.jpname}</h2>
           <a href={item.place.map ? item.place.map : item.place.name}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-md text-gray-500 hover:underline active:underline">{item.place.loc}</a>
+              className="text-sm text-gray-500 hover:underline active:underline">{item.place.loc}</a>
         </div>
         
           <div className="flex items-center gap-4">

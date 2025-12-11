@@ -228,7 +228,7 @@ function App() {
           </button>
         </div>
       </div>
-      <div className='flex flex-row gap-2 mx-2 mb-6'>
+      <div className='flex flex-row gap-4 mb-6'>
         <button onClick={() => setDetailWeather((v) => !v)} 
         className="w-full h-20 rounded-3xl shadow-sm flex flex-row items-center justify-center gap-3"
         style={{
