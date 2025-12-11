@@ -1,4 +1,6 @@
-// Tomorrow.io weather fetch for Osaka
+// Tomorrow.io weather fetch for Osaka with cookie caching
+
+import { getCachedJson, setCachedJson } from "./storage";
 
 export interface WeatherData {
   current?: {
@@ -26,7 +28,20 @@ const OSAKA_LON = 135.5011;
 // Reads Tomorrow.io API key from Vite env: VITE_TOMORROW_API_KEY
 const API_KEY = import.meta.env.VITE_TOMORROW_API_KEY as string | undefined;
 
+const CACHE_KEY = "osaka_weather";
+const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+
 export const weatherData = async (): Promise<WeatherData | null> => {
+  // 1. Try cookie cache first
+  const cached = getCachedJson<WeatherData>(CACHE_KEY, SIX_HOURS_MS);
+  if (cached) {
+    // Revive Date instance for current.time if present
+    if (cached.current && (cached.current as any).time) {
+      cached.current.time = new Date((cached.current as any).time as any);
+    }
+    return cached;
+  }
+
   if (!API_KEY) {
     console.error("Missing VITE_TOMORROW_API_KEY env var for Tomorrow.io");
     return null;
@@ -105,6 +120,9 @@ export const weatherData = async (): Promise<WeatherData | null> => {
     },
   };
 
-  console.log("Tomorrow.io Osaka weather", data);
+  // Save to cookie cache for 6 hours
+  setCachedJson(CACHE_KEY, data, SIX_HOURS_MS);
+
+  console.log("Tomorrow.io Osaka weather (fetched)", data);
   return data;
 };

@@ -22,7 +22,7 @@ export function ShowWeather({ data, onClose }: ShowWeatherProps) {
             className="px-2 py-1 text-sm rounded-md bg-gray-100 hover:bg-gray-200"
             onClick={onClose}
           >
-            Close
+            ✕
           </button>
         </div>
 

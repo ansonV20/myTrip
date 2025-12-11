@@ -7,6 +7,8 @@ import { DirectionsMap } from './components/DirectionsMap';
 import { EditPlanDialog } from './components/EditPlanDialog';
 import { AddPlanDialog } from './components/AddPlanDialog';
 import { ShowWeather } from './components/showWeather';
+import { ShowExchange } from './components/showExchange';
+import { getHkdToJpyRate, formatNumber } from './exchangeRates';
 import { MultiDestinationMapLink } from './components/MultiDestinationMapLink';
 import { getBrowserLocation, getDistanceFromGoogle } from './components/showPlaceLocation';
 import { FaDatabase, FaCheck } from 'react-icons/fa';
@@ -31,8 +33,15 @@ function App() {
   const [originPlaceId, setOriginPlaceId] = useState<string | null>(null);
   const [weather, setWeather] = useState<WeatherState>(null);
   const [detailWeather, setDetailWeather] = useState<boolean>(false);
+  const [exchangeOpen, setExchangeOpen] = useState<boolean>(false);
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
 
   useEffect(() => {
+    // Avoid double-run in React 18 StrictMode (dev)
+    let ran = (window as any).__WEATHER_FETCH_RAN__;
+    if (ran) return;
+    (window as any).__WEATHER_FETCH_RAN__ = true;
+    
     const fetchWeather = async () => {
       try {
         const data = await weatherData();
@@ -43,6 +52,19 @@ function App() {
     };
 
     fetchWeather();
+  }, []);
+
+  useEffect(() => {
+    const fetchRate = async () => {
+      try {
+        const r = await getHkdToJpyRate();
+        setExchangeRate(r);
+      } catch (e) {
+        console.error('Failed to fetch exchange rate', e);
+      }
+    };
+
+    fetchRate();
   }, []);
 
   useEffect(() => {
@@ -189,50 +211,9 @@ function App() {
 
   return (
     <div className="container mx-auto p-4">
-      <div className="flex flex-col items-start mb-4">
-        <div className='flex flex-row items-center justify-between gap-4'>
-          <h1 className="text-[50px] font-black">Osaka Trip</h1>
-          <button onClick={() => setDetailWeather((v) => !v)} className="flex flex-col items-end text-sm">
-            {/* Temperature (current if available, otherwise first hourly) */}
-            <p
-              className={
-                weather?.current?.temperature != null && weather.current.temperature <= 0
-                  ? 'text-orange-700'
-                  : weather?.current?.temperature != null && weather.current.temperature < 10
-                  ? 'text-blue-800'
-                  : weather?.current?.temperature != null && weather.current.temperature < 15
-                  ? 'text-blue-500'
-                  : ''
-              }
-            >
-              {weather?.current?.temperature != null
-                ? `${weather.current.temperature.toFixed(1)}°C`
-                : weather?.hourly?.temperature?.[0] != null
-                ? `${weather.hourly.temperature[0].toFixed(1)}°C`
-                : ''}
-            </p>
-
-            {/* Icons based on precipitation type and existing rain/snow values */}
-            <div className="flex flex-row items-center gap-1">
-              {weather?.current?.precipitationType != null && (() => {
-                const t = Math.round(weather.current!.precipitationType);
-                if (t === 1) return <IoMdRainy />;
-                if (t === 2) return <FaSnowflake />;
-                if (t === 3) return <IoMdRainy />; // freezing rain -> rain icon
-                if (t === 4) return <FaSnowflake />; // sleet -> snow icon
-                return null;
-              })()}
-              {/* fallback to original icons if type not available */}
-              {weather?.current?.precipitationType == null && (
-                <>
-                  {weather?.current?.rain != null && weather.current.rain >= 1 && <IoMdRainy />}
-                  {weather?.current?.snowfall != null && weather.current.snowfall > 0 && <FaSnowflake />}
-                </>
-              )}
-            </div>
-          </button>
-        </div>
-        <div className="flex flex-row items-center justify-start gap-2">
+      <div className="flex flex-row items-start mb-4">
+        <h1 className="text-[50px] font-black">Osaka Trip</h1>
+        <div className="flex flex-col items-center justify-between ml-auto gap-2">
           <button
             className={`rounded-full bg-gray-500 text-white text-xs p-1.5`}
             onClick={() => setEditMode((v) => !v)}
@@ -246,6 +227,72 @@ function App() {
             <FaDatabase />
           </button>
         </div>
+      </div>
+      <div className='flex flex-row gap-2 mx-2 mb-6'>
+        <button onClick={() => setDetailWeather((v) => !v)} 
+        className="w-full h-20 rounded-3xl shadow-sm flex flex-row items-center justify-center gap-3"
+        style={{
+          boxShadow: "inset 3px 3px 6px #A3A3A3FF, inset -3px -3px 6px #F0F0F0FF"
+        }}>
+          {/* Temperature (current if available, otherwise first hourly) */}
+          <div className=' text-left'>
+          <p
+          className={`font-bold text-xl ${
+            weather?.current?.temperature != null && weather.current.temperature <= 0
+            ? 'text-orange-700'
+            : weather?.current?.temperature != null && weather.current.temperature < 10
+            ? 'text-blue-800'
+            : weather?.current?.temperature != null && weather.current.temperature < 15
+            ? 'text-blue-500'
+            : ''
+          }`}
+          >
+          {weather?.current?.temperature != null
+            ? `${weather.current.temperature.toFixed(1)}°C`
+            : weather?.hourly?.temperature?.[0] != null
+            ? `${weather.hourly.temperature[0].toFixed(1)}°C`
+            : '---'}
+          </p>
+          <p className='text-xs font-normal'>
+            {weather?.current?.tempRange != null && Array.isArray(weather.current.tempRange) && weather.current.tempRange.length === 2
+              ? `${weather.current.tempRange[0].toFixed(1)}°C - ${weather.current.tempRange[1].toFixed(1)}°C`
+              : ''}
+          </p>
+          </div>
+
+          {/* Icons based on precipitation type and existing rain/snow values */}
+          <div className="flex flex-row items-center text-xl gap-1">
+            {weather?.current?.precipitationType != null && (() => {
+              const t = Math.round(weather.current!.precipitationType);
+              if (t === 1) return <IoMdRainy />;
+              if (t === 2) return <FaSnowflake />;
+              if (t === 3) return <IoMdRainy />; // freezing rain -> rain icon
+              if (t === 4) return <FaSnowflake />; // sleet -> snow icon
+              return null;
+            })()}
+            {/* fallback to original icons if type not available */}
+            {weather?.current?.precipitationType == null && (
+              <>
+              {weather?.current?.rain != null && weather.current.rain >= 1 && <IoMdRainy />}
+              {weather?.current?.snowfall != null && weather.current.snowfall > 0 && <FaSnowflake />}
+              </>
+            )}
+          </div>
+        </button>
+        <button 
+          className="w-full h-20 rounded-3xl shadow-sm flex flex-col items-center justify-center"
+          style={{
+            boxShadow: "inset 3px 3px 6px #A3A3A3FF, inset -3px -3px 6px #F0F0F0FF"
+          }}
+          onClick={() => setExchangeOpen(true)}
+        >
+          <p className="text-xs text-gray-600">HKD ⇄ JPY</p>
+          <p className="font-bold text-xl text-gray-800 mt-1">
+            {exchangeRate != null
+              ? `${formatNumber(1 / exchangeRate, 4)}`
+              : 'Loading...'}
+          </p>
+        </button>
       </div>
       {/* Day selector */}
       <div className="mb-8 flex flex-wrap gap-2">
@@ -475,6 +522,11 @@ function App() {
         onClose={() => setDetailWeather(false)}
         />
       )}
+
+      <ShowExchange
+        open={exchangeOpen}
+        onClose={() => setExchangeOpen(false)}
+      />
     </div>
   );
 }
