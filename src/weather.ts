@@ -29,7 +29,7 @@ const OSAKA_LON = 135.5011;
 const API_KEY = import.meta.env.VITE_TOMORROW_API_KEY as string | undefined;
 
 const CACHE_KEY = "osaka_weather";
-const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+const SIX_HOURS_MS = 4 * 60 * 60 * 1000;
 
 export const weatherData = async (): Promise<WeatherData | null> => {
   // 1. Try cookie cache first

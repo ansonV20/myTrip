@@ -35,6 +35,7 @@ function App() {
   const [detailWeather, setDetailWeather] = useState<boolean>(false);
   const [exchangeOpen, setExchangeOpen] = useState<boolean>(false);
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
+  const [currentDisplayTemp, setCurrentDisplayTemp] = useState<number | null>(null);
 
   useEffect(() => {
     // // Avoid double-run in React 18 StrictMode (dev)
@@ -46,6 +47,33 @@ function App() {
       try {
         const data = await weatherData();
         setWeather(data);
+        // just before the JSX return, derive a helper:
+        if (
+          data != null &&
+          data.current?.time != null &&
+          data.hourly?.temperature != null &&
+          Array.isArray(data.hourly.temperature)
+        ) {
+          const base = data.current.time;        // time of first hourly entry
+          const now = new Date();
+          const diffMs = now.getTime() - base.getTime();
+          const hoursFromBase = Math.floor(diffMs / (60 * 60 * 1000));
+          if (hoursFromBase < 0) {
+            setCurrentDisplayTemp(
+              data.current.temperature != null ? data.current.temperature : null
+            );
+            return;
+          } else {
+            const temps = data.hourly.temperature;
+            const idx = Math.min(hoursFromBase, temps.length - 1);
+            const temp = temps[idx];
+            setCurrentDisplayTemp(Number.isFinite(temp) ? temp : null);
+            return;
+          }
+        } else {
+          setCurrentDisplayTemp(null);
+          return;
+        }
       } catch (error) {
         console.error('Failed to fetch weather data', error);
       }
@@ -247,11 +275,9 @@ function App() {
             : ''
           }`}
           >
-          {weather?.current?.temperature != null
-            ? `${weather.current.temperature.toFixed(1)}°C`
-            : weather?.hourly?.temperature?.[0] != null
-            ? `${weather.hourly.temperature[0].toFixed(1)}°C`
-            : '---'}
+          {currentDisplayTemp != null
+          ? `${currentDisplayTemp.toFixed(1)}°C`
+          : '---'}
           </p>
           <p className='text-xs font-normal'>
             {weather?.current?.tempRange != null && Array.isArray(weather.current.tempRange) && weather.current.tempRange.length === 2
