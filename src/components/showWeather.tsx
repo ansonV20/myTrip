@@ -94,7 +94,7 @@ export function ShowWeather({ data, onClose }: ShowWeatherProps) {
               <span>Type</span>
             </div>
             <div className="max-h-52 overflow-y-auto border-t border-gray-100 pt-1">
-              {hourly.temperature.map((temp, idx) => {
+              {hourly.temperature.slice(0,24).map((temp, idx) => {
 
                 const now = current?.time ?? new Date();
                 const hourDate = new Date(now.getTime() + idx * 60 * 60 * 1000);

@@ -13,5 +13,5 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/database" element={<DatabasePage />} />
       </Routes>
     </BrowserRouter>
-  </StrictMode>,
+  </StrictMode>
 )

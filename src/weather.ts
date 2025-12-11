@@ -82,8 +82,8 @@ export const weatherData = async (): Promise<WeatherData | null> => {
     hourlyPrecipType.push(Number(v.precipitationType ?? NaN));
   }
 
-  const minTemp = Math.min(...hourlyTemps.filter(t => !isNaN(t)));
-  const maxTemp = Math.max(...hourlyTemps.filter(t => !isNaN(t)));
+  const minTemp = Math.min(...hourlyTemps.slice(0,24).filter(t => !isNaN(t)));
+  const maxTemp = Math.max(...hourlyTemps.slice(0,24).filter(t => !isNaN(t)));
 
   const data: WeatherData = {
     current: {
