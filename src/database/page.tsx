@@ -180,7 +180,7 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 		<div className="fixed inset-0 z-50 flex items-center justify-center">
 			<div className="absolute inset-0 bg-black/40" onClick={onClose} />
 			<div className="relative z-10 w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl">
-				<h2 className="text-xl font-bold mb-4">Edit {table}</h2>
+				<h2 className="text-md font-bold mb-4">Edit {table}</h2>
 				<div className="space-y-3">
 					{keys.map((k) => (
 						<div key={k}>
@@ -188,14 +188,14 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 								{k === 'time' ? (
 											<div className="flex gap-2">
 												<input
-													className="w-full rounded-md border border-gray-300 p-2"
+												className="w-full rounded-md border border-gray-300 p-2 text-xs"
 													type="datetime-local"
 													value={String(form[k] ?? '')}
 													onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
 													disabled={disabledKeys.has(k)}
 												/>
 												<select
-													className="rounded-md border border-gray-300 p-2 text-sm"
+												className="rounded-md border border-gray-300 p-2 text-xs"
 													value={Number((form as any)['utc'] ?? (row as any)['utc'] ?? offset)}
 													onChange={(e) => setForm((f) => ({ ...f, utc: Number(e.target.value) }))}
 												>
@@ -206,7 +206,7 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 											</div>
 								) : table === 'plan' && k === 'tid' ? (
 									<select
-										className="w-full rounded-md border border-gray-300 p-2"
+												className="w-full rounded-md border border-gray-300 p-2 text-xs"
 										value={String(form.tid ?? row.tid ?? '')}
 										onChange={(e) => setForm((f) => ({ ...f, tid: e.target.value }))}
 									>
@@ -219,7 +219,7 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 									</select>
 								) : table === 'plan' && k === 'pid' ? (
 									<select
-										className="w-full rounded-md border border-gray-300 p-2"
+										className="w-full rounded-md border border-gray-300 p-2 text-xs"
 										value={String(form.pid ?? row.pid ?? '')}
 										onChange={(e) => setForm((f) => ({ ...f, pid: e.target.value }))}
 									>
@@ -239,7 +239,7 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 											</div>
 										)}
 										<input
-											className="w-full rounded-md border border-gray-300 p-2"
+											className="w-full rounded-md border border-gray-300 p-2 text-xs"
 											type="text"
 											placeholder="https://..."
 											value={String(form.img ?? '')}
@@ -247,7 +247,7 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 										/>
 										<div className="flex items-center gap-2">
 											<input
-												className="flex-1 rounded-md border border-gray-300 p-2"
+												className="flex-1 rounded-md border border-gray-300 p-2 text-xs"
 												type="file"
 												accept="image/*"
 												onChange={(e) => setImgFile(e.target.files?.[0] ?? null)}
@@ -278,7 +278,7 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 									</div>
 								) : (
 									<input
-										className="w-full rounded-md border border-gray-300 p-2"
+										className="w-full rounded-md border border-gray-300 p-2 text-xs"
 										type={getInputType(k)}
 										value={String(form[k] ?? '')}
 										onChange={(e) =>
@@ -432,21 +432,21 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 		<div className="fixed inset-0 z-50 flex items-center justify-center">
 			<div className="absolute inset-0 bg-black/40" onClick={onClose} />
 			<div className="relative z-10 w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
-				<h2 className="text-xl font-bold mb-4">Add {table}</h2>
+				<h2 className="text-md font-bold mb-4">Add {table}</h2>
 				<div className="space-y-3">
 					{schema.map(({ key, label, type, required }) => (
 						<div key={key}>
-							<label className="block text-sm font-medium text-gray-700 mb-1">{label}{required ? ' *' : ''}</label>
+							<label className="block text-xs font-medium text-gray-700 mb-1">{label}{required ? ' *' : ''}</label>
 							{type === 'datetime-local' ? (
 								<div className="flex gap-2">
 									<input
-										className="w-full rounded-md border border-gray-300 p-2"
+										className="w-full rounded-md border border-gray-300 p-2 text-xs"
 										type="datetime-local"
 										value={String(form[key] ?? '')}
 										onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
 									/>
 									<select
-										className="rounded-md border border-gray-300 p-2 text-sm"
+										className="rounded-md border border-gray-300 p-2 text-xs"
 										value={Number((form as any)['utc'] ?? offset)}
 										onChange={(e) => setForm((f) => ({ ...f, utc: Number(e.target.value) }))}
 									>
@@ -457,7 +457,7 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 								</div>
 							) : table === 'plan' && key === 'tid' ? (
 								<select
-									className="w-full rounded-md border border-gray-300 p-2"
+									className="w-full rounded-md border border-gray-300 p-2 text-xs"
 									value={String(form.tid ?? '')}
 									onChange={(e) => setForm((f) => ({ ...f, tid: e.target.value }))}
 								>
@@ -470,7 +470,7 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 								</select>
 							) : table === 'plan' && key === 'pid' ? (
 								<select
-									className="w-full rounded-md border border-gray-300 p-2"
+									className="w-full rounded-md border border-gray-300 p-2 text-xs"
 									value={String(form.pid ?? '')}
 									onChange={(e) => setForm((f) => ({ ...f, pid: e.target.value }))}
 								>
@@ -483,7 +483,7 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 								</select>
 								) : table === 'place' && key === 'id' ? (
 									<select
-										className="w-full rounded-md border border-gray-300 p-2"
+										className="w-full rounded-md border border-gray-300 p-2 text-xs"
 										value={String(form.id ?? '')}
 										onChange={(e) => setForm((f) => ({ ...f, id: e.target.value }))}
 									>
@@ -499,11 +499,11 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 								) : table === 'place' && key === 'img' ? (
 									<div className="space-y-2">
 										{form.img && (
-											<div className="max-h-48 overflow-hidden rounded-md border bg-black/5 flex items-center justify-center">
+											<div className="max-h-40 overflow-hidden rounded-md border bg-black/5 flex items-center justify-center">
 												<img
 													src={String(form.img)}
 													alt="preview"
-													className="max-h-48 w-auto max-w-full object-contain"
+													className="max-h-40 w-auto max-w-full object-contain"
 												/>
 											</div>
 										)}
@@ -518,7 +518,7 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 											</a>
 										)}
 										<input
-											className="w-full rounded-md border border-gray-300 p-2"
+											className="w-full rounded-md border border-gray-300 p-2 text-xs"
 											type="text"
 											placeholder="https://..."
 											value={String(form.img ?? '')}
@@ -532,7 +532,7 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 												onChange={(e) => setImgFile(e.target.files?.[0] ?? null)}
 											/>
 											<button
-												className="px-3 py-2 rounded-md bg-green-600 text-white disabled:opacity-60 whitespace-nowrap text-sm"
+												className="px-3 py-2 rounded-md bg-green-600 text-white disabled:opacity-60 whitespace-nowrap text-xs"
 												disabled={imgUploading || !imgFile || !form.id}
 												onClick={async () => {
 												if (!imgFile || !form.id) return;
@@ -557,7 +557,7 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 									</div>
 							) : (
 								<input
-									className="w-full rounded-md border border-gray-300 p-2"
+										className="w-full rounded-md border border-gray-300 p-2 text-xs"
 									type={type}
 									value={String(form[key] ?? '')}
 									onChange={(e) => setForm((f) => ({ ...f, [key]: type === 'number' ? Number(e.target.value) : e.target.value }))}
@@ -646,12 +646,12 @@ function AddColumnDialog({
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
 						<label className="block text-sm font-medium text-gray-700 mb-1">Table</label>
-						<input className="w-full rounded-md border border-gray-300 p-2 bg-gray-100" value={table} readOnly />
+						<input className="w-full rounded-md border border-gray-300 p-2 text-xs bg-gray-100" value={table} readOnly />
 					</div>
 					<div>
 						<label className="block text-sm font-medium text-gray-700 mb-1">Column name</label>
 						<input
-							className={`w-full rounded-md border p-2 ${colName && !isValidColName(colName) ? 'border-red-400' : 'border-gray-300'}`}
+							className={`w-full rounded-md border p-2 text-xs ${colName && !isValidColName(colName) ? 'border-red-400' : 'border-gray-300'}`}
 							placeholder="e.g., notes"
 							value={colName}
 							onChange={(e) => setColName(e.target.value)}
@@ -659,7 +659,7 @@ function AddColumnDialog({
 					</div>
 					<div>
 						<label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-						<select className="w-full rounded-md border border-gray-300 p-2" value={colType} onChange={(e) => setColType(e.target.value as any)}>
+						<select className="w-full rounded-md border border-gray-300 p-2 text-xs" value={colType} onChange={(e) => setColType(e.target.value as any)}>
 							<option value="text">text</option>
 							<option value="integer">integer</option>
 							<option value="numeric">numeric</option>
@@ -678,7 +678,7 @@ function AddColumnDialog({
 					<div className="md:col-span-2">
 						<label className="block text-sm font-medium text-gray-700 mb-1">Default (optional)</label>
 						<input
-							className="w-full rounded-md border border-gray-300 p-2"
+							className="w-full rounded-md border border-gray-300 p-2 text-xs"
 							placeholder={colType === 'timestamp' ? "e.g., now() or '2025-11-02T12:00:00Z'" : colType === 'integer' || colType === 'numeric' ? 'e.g., 0' : colType === 'boolean' ? 'true/false' : "e.g., 'hello'"}
 							value={defVal}
 							onChange={(e) => setDefVal(e.target.value)}
