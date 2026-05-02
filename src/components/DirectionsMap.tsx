@@ -1,5 +1,6 @@
-import { GoogleMap, useJsApiLoader, DirectionsRenderer, DirectionsService } from '@react-google-maps/api';
-import { useState, memo, useEffect } from 'react';
+import { useJsApiLoader } from '@react-google-maps/api';
+import { memo } from 'react';
+
 // import { FaWalking, FaBus } from 'react-icons/fa';
 // import { FaStreetView } from 'react-icons/fa6';
 
