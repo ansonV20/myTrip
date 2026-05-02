@@ -410,6 +410,16 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 				Object.assign(payload, dbPayload);
 			}
 			const insertPayload = table === 'place' ? { id: payload.id, google_maps_json: payload.google_maps_json ?? null, info: payload.info ?? null } : payload;
+			// Auto-fill `id` for `tran` if missing: use max numeric id + 1, padded to 4 digits starting at 0001
+			if (table === 'tran' && (!payload.id || String(payload.id).trim() === '')) {
+				const { data: existingIds, error: idErr } = await supabase.from('tran').select('id');
+				if (idErr) throw idErr;
+				const nums = (existingIds || [])
+					.map((r: any) => Number(r.id))
+					.filter((n: number) => !Number.isNaN(n) && n >= 1 && n <= 9999);
+				const max = nums.length ? Math.max(...nums) : 0;
+				payload.id = String(max + 1).padStart(4, '0');
+			}
 			const { error } = await supabase.from(table).insert(insertPayload as any);
 			if (error) throw error;
 			onSaved();
