@@ -1,23 +1,31 @@
 import { createClient } from '@supabase/supabase-js';
+import type { GoogleMapsJson } from './database/procress';
 
 // Add your Supabase URL and anon key here
-const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl =
+  import.meta.env.NEW_POSTGRES_DATABASE_SUPABASE_URL ??
+  import.meta.env.NEXT_PUBLIC_NEW_POSTGRES_DATABASE_SUPABASE_URL ??
+  import.meta.env.VITE_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey =
+  import.meta.env.NEW_POSTGRES_DATABASE_SUPABASE_ANON_KEY ??
+  import.meta.env.NEW_POSTGRES_DATABASE_SUPABASE_PUBLISHABLE_KEY ??
+  import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Supabase URL and anon key are required.");
+  throw new Error('Supabase URL and anon key are required.');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export interface Place {
   id: string;
-  name: string;
-  jpname?: string;
-  loc?: string;
-  img?: string;
+  // Stored columns
+  google_maps_json?: GoogleMapsJson | null;
   info?: string;
-  map?: string;
+  // Derived (client-side) helpers for display
+  name?: string;
+  loc?: string; // "lat,lng"
+  originalUrl?: string;
 }
 
 export interface Type {
@@ -54,14 +62,31 @@ export type TimelineItem = Plan | Tran;
 export const getPlaces = async (): Promise<Place[]> => {
   const { data, error } = await supabase
     .from('place')
-    .select('id, name, jpname, loc, img, info, map');
+    .select('id, google_maps_json, info');
 
   if (error) {
     console.error('Error fetching places:', error);
     return [];
   }
 
-  return (data ?? []) as Place[];
+  const rows = (data ?? []) as any[];
+  return rows.map((r) => {
+    const p: Place = {
+      id: r.id,
+      google_maps_json: r.google_maps_json ?? null,
+      info: r.info,
+    };
+    const gm = p.google_maps_json;
+    if (gm) {
+      if (gm.placeName) p.name = gm.placeName;
+      if (gm.center && typeof gm.center.lat === 'number' && typeof gm.center.lng === 'number') {
+        p.loc = `${gm.center.lat},${gm.center.lng}`;
+      }
+      if (gm.originalUrl) p.originalUrl = gm.originalUrl;
+    }
+    if (!p.name) p.name = String(p.id);
+    return p;
+  });
 };
 
 // Upload an image file to Supabase Storage ('media' bucket) and return its public URL and path.
@@ -110,12 +135,8 @@ export const getTimeline = async (): Promise<TimelineItem[]> => {
       utc,
       place:place(
         id,
-        name,
-        jpname,
-        loc,
-        img,
-        info,
-        map
+        google_maps_json,
+        info
       )
     `);
 
@@ -143,12 +164,30 @@ export const getTimeline = async (): Promise<TimelineItem[]> => {
   }
 
   const timeline: TimelineItem[] = [
-    ...plans.map((p: any) => ({
-      ...p,
-      type: 'plan' as const,
-      // Attach resolved type name if available
-      typeName: typeMap.get(p.tid as string),
-    })),
+    ...plans.map((p: any) => {
+      const placeRaw = p.place ?? {};
+      const place: Place = {
+        id: placeRaw.id,
+        google_maps_json: placeRaw.google_maps_json ?? null,
+        info: placeRaw.info,
+      };
+      const gm = place.google_maps_json;
+      if (gm) {
+        if (gm.placeName) place.name = gm.placeName;
+        if (gm.center && typeof gm.center.lat === 'number' && typeof gm.center.lng === 'number') {
+          place.loc = `${gm.center.lat},${gm.center.lng}`;
+        }
+        if (gm.originalUrl) place.originalUrl = gm.originalUrl;
+      }
+      if (!place.name) place.name = String(place.id);
+
+      return {
+        ...p,
+        place,
+        type: 'plan' as const,
+        typeName: typeMap.get(p.tid as string),
+      };
+    }),
     ...trans.map((t: any) => ({ ...t, type: 'tran' as const })),
   ];
 

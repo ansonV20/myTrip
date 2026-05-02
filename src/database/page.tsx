@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, updatePlan, updateTran, uploadPlaceImage } from '../db';
+import { supabase, updatePlan, updateTran } from '../db';
+import { googleMapsUrlToJson } from './procress';
 
 type TableName = 'plan' | 'tran' | 'place' | 'type';
 
@@ -65,6 +66,28 @@ function fromInputDateTimeWithOffset(local: string, offsetHours: number): string
 	return new Date(epoch).toISOString();
 }
 
+function normalizePlaceFromGoogleMaps(form: Row): Row {
+	const maybeUrl = typeof form.map === 'string' ? form.map.trim() : '';
+	if (!maybeUrl) return { ...form, google_maps_json: null };
+	try {
+		const parsed = googleMapsUrlToJson(maybeUrl);
+		const next: Row = { ...form };
+		next.google_maps_json = parsed;
+		// derived display helpers (not persisted directly)
+		if (parsed.placeName) next.name = String(next.name ?? '').trim() || parsed.placeName;
+		if (!next.name) next.name = String(next.id ?? '');
+		if (parsed.center) next.loc = `${parsed.center.lat},${parsed.center.lng}`;
+		if (parsed.originalUrl) next.originalUrl = parsed.originalUrl;
+		// remove fields that no longer exist in DB
+		delete next.map;
+		delete next.img;
+		delete next.jpname;
+		return next;
+	} catch {
+		return { ...form, google_maps_json: null };
+	}
+}
+
 type EditDialogProps = {
 	open: boolean;
 	table: TableName;
@@ -80,9 +103,7 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 	const [offset] = useState<number>(getDefaultOffsetHours());
 	const [placeOptions, setPlaceOptions] = useState<{ id: string; name: string }[]>([]);
 	const [typeOptions, setTypeOptions] = useState<{ id: string; name: string }[]>([]);
-	const [imgFile, setImgFile] = useState<File | null>(null);
-	const [imgUploading, setImgUploading] = useState(false);
-	const [imgError, setImgError] = useState<string | null>(null);
+    
 
 	useEffect(() => {
 		if (row) {
@@ -103,10 +124,16 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 		const loadOptions = async () => {
 			if (!open || table !== 'plan') return;
 			const [{ data: places, error: perr }, { data: types, error: terr }] = await Promise.all([
-				supabase.from('place').select('id, name').order('id'),
+				supabase.from('place').select('id, google_maps_json').order('id'),
 				supabase.from('type').select('id, name').order('id'),
 			]);
-			if (!perr && places) setPlaceOptions(places as any);
+			if (!perr && places) {
+				const mapped = (places as any[]).map((p) => ({
+					id: p.id,
+					name: (p.google_maps_json?.placeName as string) || String(p.id),
+				}));
+				setPlaceOptions(mapped as any);
+			}
 			if (!terr && types) setTypeOptions(types as any);
 		};
 		loadOptions();
@@ -164,8 +191,18 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 			} else {
 				const match = row.id ? { id: row.id } : undefined;
 				if (!match) throw new Error('Cannot update row without id');
-				const { error } = await supabase.from(table).update(form).match(match);
-				if (error) throw error;
+				if (table === 'place') {
+					const normalized = normalizePlaceFromGoogleMaps(form);
+					const dbPayload: Row = {
+						google_maps_json: normalized.google_maps_json ?? null,
+						info: normalized.info ?? null,
+					};
+					const { error } = await supabase.from('place').update(dbPayload).match(match);
+					if (error) throw error;
+				} else {
+					const { error } = await supabase.from(table).update(form).match(match);
+					if (error) throw error;
+				}
 			}
 			onSaved();
 			onClose();
@@ -230,52 +267,6 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 											</option>
 										))}
 									</select>
-								) : table === 'place' && k === 'img' ? (
-									<div className="space-y-2">
-										{form.img && (
-											<div>
-												<img src={String(form.img)} alt="preview" className="w-full max-h-48 object-contain rounded-md border" />
-												<a href={String(form.img)} target="_blank" rel="noreferrer" className="text-xs text-blue-600 underline">Open image</a>
-											</div>
-										)}
-										<input
-											className="w-full rounded-md border border-gray-300 p-2 text-xs"
-											type="text"
-											placeholder="https://..."
-											value={String(form.img ?? '')}
-											onChange={(e) => setForm((f) => ({ ...f, img: e.target.value }))}
-										/>
-										<div className="flex items-center gap-2">
-											<input
-												className="flex-1 rounded-md border border-gray-300 p-2 text-xs"
-												type="file"
-												accept="image/*"
-												onChange={(e) => setImgFile(e.target.files?.[0] ?? null)}
-											/>
-											<button
-												className="px-3 py-2 rounded-md bg-green-600 text-white disabled:opacity-60"
-												disabled={imgUploading || !imgFile || !row.id}
-												onClick={async () => {
-													if (!imgFile || !row.id) return;
-													try {
-														setImgError(null);
-														setImgUploading(true);
-														const { publicUrl } = await uploadPlaceImage(imgFile, String(row.id));
-														setForm((f) => ({ ...f, img: publicUrl }));
-														setImgFile(null);
-													} catch (e: any) {
-														setImgError(e?.message ?? 'Upload failed');
-													} finally {
-														setImgUploading(false);
-													}
-												}}
-											>
-												{imgUploading ? 'Uploading…' : 'Upload'}
-											</button>
-										</div>
-										{!row.id && <p className="text-xs text-gray-500">Enter and save a Place ID first to enable uploads</p>}
-										{imgError && <p className="text-xs text-red-600">{imgError}</p>}
-									</div>
 								) : (
 									<input
 										className="w-full rounded-md border border-gray-300 p-2 text-xs"
@@ -332,12 +323,8 @@ const tableSchemas: Record<TableName, { key: string; label: string; type: 'text'
 	],
 	place: [
 		{ key: 'id', label: 'ID', type: 'text', required: true },
-		{ key: 'name', label: 'Name', type: 'text', required: true },
-		{ key: 'jpname', label: 'JP Name', type: 'text' },
-		{ key: 'loc', label: 'Location (lat,lng)', type: 'text' },
-		{ key: 'img', label: 'Image URL', type: 'text' },
+		{ key: 'map', label: 'Google Maps URL', type: 'text', required: true },
 		{ key: 'info', label: 'Info', type: 'text' },
-		{ key: 'map', label: 'Map Query', type: 'text' },
 	],
 	type: [
 		{ key: 'id', label: 'ID', type: 'text', required: true },
@@ -354,9 +341,7 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 	const [placeOptions, setPlaceOptions] = useState<{ id: string; name: string }[]>([]);
 	const [typeOptions, setTypeOptions] = useState<{ id: string; name: string }[]>([]);
 	const [placeIdOptions, setPlaceIdOptions] = useState<string[]>([]);
-	const [imgFile, setImgFile] = useState<File | null>(null);
-	const [imgUploading, setImgUploading] = useState(false);
-	const [imgError, setImgError] = useState<string | null>(null);
+    
 
 	useEffect(() => {
 		if (open) {
@@ -372,10 +357,13 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 			if (!open) return;
 			if (table === 'plan') {
 				const [{ data: places, error: perr }, { data: types, error: terr }] = await Promise.all([
-					supabase.from('place').select('id, name').order('id'),
+					supabase.from('place').select('id, google_maps_json').order('id'),
 					supabase.from('type').select('id, name').order('id'),
 				]);
-				if (!perr && places) setPlaceOptions(places as any);
+				if (!perr && places) {
+					const mapped = (places as any[]).map((p) => ({ id: p.id, name: (p.google_maps_json?.placeName as string) || String(p.id) }));
+					setPlaceOptions(mapped as any);
+				}
 				if (!terr && types) setTypeOptions(types as any);
 			} else if (table === 'place') {
 				const { data: places, error: perr } = await supabase.from('place').select('id').order('id');
@@ -412,7 +400,17 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 				const chosen = typeof payload.utc === 'number' ? payload.utc : offset;
 				payload.time = fromInputDateTimeWithOffset(payload.time, chosen);
 			}
-			const { error } = await supabase.from(table).insert(payload as any);
+			if (table === 'place') {
+				const normalized = normalizePlaceFromGoogleMaps(payload);
+				const dbPayload: Row = {
+					id: normalized.id,
+					google_maps_json: normalized.google_maps_json ?? null,
+					info: normalized.info ?? null,
+				};
+				Object.assign(payload, dbPayload);
+			}
+			const insertPayload = table === 'place' ? { id: payload.id, google_maps_json: payload.google_maps_json ?? null, info: payload.info ?? null } : payload;
+			const { error } = await supabase.from(table).insert(insertPayload as any);
 			if (error) throw error;
 			onSaved();
 			onClose();
@@ -496,66 +494,7 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 											</option>
 										))}
 									</select>
-								) : table === 'place' && key === 'img' ? (
-									<div className="space-y-2">
-										{form.img && (
-											<div className="max-h-40 overflow-hidden rounded-md border bg-black/5 flex items-center justify-center">
-												<img
-													src={String(form.img)}
-													alt="preview"
-													className="max-h-40 w-auto max-w-full object-contain"
-												/>
-											</div>
-										)}
-										{form.img && (
-											<a
-												href={String(form.img)}
-												target="_blank"
-												rel="noreferrer"
-												className="text-xs text-blue-600 underline"
-											>
-												Open image
-											</a>
-										)}
-										<input
-											className="w-full rounded-md border border-gray-300 p-2 text-xs"
-											type="text"
-											placeholder="https://..."
-											value={String(form.img ?? '')}
-											onChange={(e) => setForm((f) => ({ ...f, img: e.target.value }))}
-										/>
-										<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-											<input
-												className="w-full sm:flex-1 rounded-md border border-gray-300 p-2 text-xs sm:text-sm"
-												type="file"
-												accept="image/*"
-												onChange={(e) => setImgFile(e.target.files?.[0] ?? null)}
-											/>
-											<button
-												className="px-3 py-2 rounded-md bg-green-600 text-white disabled:opacity-60 whitespace-nowrap text-xs"
-												disabled={imgUploading || !imgFile || !form.id}
-												onClick={async () => {
-												if (!imgFile || !form.id) return;
-												try {
-													setImgError(null);
-													setImgUploading(true);
-													const { publicUrl } = await uploadPlaceImage(imgFile, String(form.id));
-													setForm((f) => ({ ...f, img: publicUrl }));
-													setImgFile(null);
-												} catch (e: any) {
-													setImgError(e?.message ?? 'Upload failed');
-												} finally {
-													setImgUploading(false);
-												}
-											}}
-											>
-												{imgUploading ? 'Uploading…' : 'Upload'}
-											</button>
-										</div>
-										{!form.id && <p className="text-xs text-gray-500">Enter an ID first to enable uploads</p>}
-										{imgError && <p className="text-xs text-red-600">{imgError}</p>}
-									</div>
-							) : (
+								) : (
 								<input
 										className="w-full rounded-md border border-gray-300 p-2 text-xs"
 									type={type}

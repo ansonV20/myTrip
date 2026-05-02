@@ -17,7 +17,7 @@ export function ShowWeather({ data, onClose }: ShowWeatherProps) {
       />
       <div className="relative z-10 max-h-[80vh] w-full max-w-lg rounded-2xl bg-white p-4 shadow-xl overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Osaka Weather Details</h2>
+          <h2 className="text-lg font-semibold">Tokyo Weather Details</h2>
           <button
             className="px-2 py-1 text-sm rounded-md bg-gray-100 hover:bg-gray-200"
             onClick={onClose}

@@ -26,7 +26,7 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
           boxShadow: "inset 3px 3px 6px #A3A3A3FF, inset -3px -3px 6px #F0F0F0FF"
         }}
       >
-        {item.place.img && <img src={item.place.img} alt={item.place.name} className="w-full h-48 object-cover rounded-xl" />}
+        {/* Images removed from place schema; derive display fields from google_maps_json */}
         <div>
           <div className='flex justify-between items-center w-full'>
             <div
@@ -49,11 +49,11 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
               <p className='text-xs'>{formatOffsetLabel((item as any).utc).split('UTC')[1]}</p>
             </div>
           </div>
-          <h2 className="text-sm text-gray-500">{item.place.jpname}</h2>
-          <a href={item.place.map ? item.place.map : item.place.name}
+            {/* JP name removed; show link to original maps URL when available */}
+            <a href={item.place.originalUrl ? item.place.originalUrl : item.place.name}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-gray-500 hover:underline active:underline">{item.place.loc}</a>
+              className="text-sm text-gray-500 hover:underline active:underline">Location</a>
         </div>
         
           <div className="flex items-center gap-4">

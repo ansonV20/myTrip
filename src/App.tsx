@@ -240,7 +240,7 @@ function App() {
   return (
     <div className="container mx-auto p-4">
       <div className="flex flex-row items-start mb-4">
-        <h1 className="text-[50px] font-black">Osaka Trip</h1>
+        <h1 className="text-[50px] font-black">Trip</h1>
         <div className="flex flex-col items-center justify-between ml-auto gap-2">
           <button
             className={`rounded-full bg-gray-500 text-white text-xs p-1.5`}
@@ -488,6 +488,7 @@ function App() {
               )}
 
               {items.map((item, index) => (
+                // console.log('Rendering item', item),
                 <div key={`${group.day}-${index}`} className="timeline-item">
                   <div className="timeline-content">
                     <ShowBox
@@ -503,8 +504,8 @@ function App() {
                       (items[index + 1] as any).place.loc && (
                         <div className="mt-6">
                           <DirectionsMap
-                            origin={item.place.loc}
-                            destination={(items[index + 1] as any).place.loc}
+                            origin={[item.place.loc!, item.place.name!]}
+                            destination={[ (items[index + 1] as any).place.loc!, (items[index + 1] as any).place.name ]}
                           />
                         </div>
                       )}

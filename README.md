@@ -87,5 +87,7 @@ This app can upload place images to Supabase Storage and store the public URL in
 
 Environment variables required (already used in the project):
 
-- `VITE_PUBLIC_SUPABASE_URL`
-- `VITE_PUBLIC_SUPABASE_ANON_KEY`
+- `NEW_POSTGRES_DATABASE_SUPABASE_URL` or `NEXT_PUBLIC_NEW_POSTGRES_DATABASE_SUPABASE_URL`
+- `NEW_POSTGRES_DATABASE_SUPABASE_ANON_KEY` or `NEW_POSTGRES_DATABASE_SUPABASE_PUBLISHABLE_KEY`
+
+Vite is configured to expose `VITE_`, `NEW_POSTGRES_DATABASE_`, and `NEXT_PUBLIC_` variables to the client, so the app can read the new Supabase project settings directly.

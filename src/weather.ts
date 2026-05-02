@@ -22,8 +22,16 @@ export interface WeatherData {
   };
 }
 
-const OSAKA_LAT = 34.6938;
-const OSAKA_LON = 135.5011;
+// const OSAKA_LAT = 34.6938;
+// const OSAKA_LON = 135.5011;
+
+// const TOKYO_LAT = 35.6764;
+// const TOKYO_LON = 139.6503;
+
+const LATLON = {
+  OSAKA: [34.6938, 135.5011],
+  TOKYO: [35.6764, 139.6503],
+};
 
 // Reads Tomorrow.io API key from Vite env: VITE_TOMORROW_API_KEY
 const API_KEY = import.meta.env.VITE_TOMORROW_API_KEY as string | undefined;
@@ -48,7 +56,7 @@ export const weatherData = async (): Promise<WeatherData | null> => {
   }
 
   const params = new URLSearchParams({
-    location: `${OSAKA_LAT},${OSAKA_LON}`,
+    location: `${LATLON.TOKYO[0]},${LATLON.TOKYO[1]}`,
     apikey: API_KEY,
     units: "metric",
     timesteps: "1h",
@@ -123,6 +131,6 @@ export const weatherData = async (): Promise<WeatherData | null> => {
   // Save to cookie cache for 6 hours
   setCachedJson(CACHE_KEY, data, SIX_HOURS_MS);
 
-  console.log("Tomorrow.io Osaka weather (fetched)", data);
+  console.log("Tomorrow.io weather (fetched)", data);
   return data;
 };

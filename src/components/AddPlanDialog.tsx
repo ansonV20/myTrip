@@ -60,10 +60,13 @@ export function AddPlanDialog({ open, defaultDay, onClose, onSaved }: AddPlanDia
     const loadOptions = async () => {
       if (!open) return;
       const [{ data: places }, { data: types }] = await Promise.all([
-        supabase.from('place').select('id, name').order('id'),
+        supabase.from('place').select('id, google_maps_json').order('id'),
         supabase.from('type').select('id, name').order('id'),
       ]);
-      if (places) setPlaceOptions(places as any);
+      if (places) {
+        const mapped = (places as any[]).map((p) => ({ id: p.id, name: (p.google_maps_json?.placeName as string) || String(p.id) }));
+        setPlaceOptions(mapped as any);
+      }
       if (types) setTypeOptions(types as any);
     };
     loadOptions();
