@@ -134,6 +134,10 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 			// Initialize form, but set a stable time string so offset changes won't mutate the input
 			setForm((_) => {
 				const next: Row = { ...row };
+				if (table === 'place') {
+					const placeJson = (row.google_maps_json ?? null) as GoogleMapsJson | null;
+					next.map = placeJson?.originalUrl ?? row.originalUrl ?? row.map ?? '';
+				}
 				if (row.time) {
 					const baseOffset = typeof (row as any).utc === 'number' ? (row as any).utc : offset;
 					next.time = toInputDateTimeWithOffset(row.time, baseOffset);
@@ -245,7 +249,9 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 				<div className="space-y-3">
 					{keys.map((k) => (
 						<div key={k}>
-							<label className="block text-sm font-medium text-gray-700 mb-1">{k}</label>
+							<label className="block text-sm font-medium text-gray-700 mb-1">
+								{editSchema.find((field) => field.key === k)?.label ?? k}
+							</label>
 								{k === 'time' ? (
 											<div className="flex gap-2">
 												<input
