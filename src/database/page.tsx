@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, updatePlan, updateTran } from '../db';
-import { googleMapsUrlToJson } from './procress';
+import { googleMapsUrlToJson, type GoogleMapsJson } from './procress';
 
 type TableName = 'plan' | 'tran' | 'place' | 'type';
 
@@ -25,6 +25,30 @@ function FieldRow({ label, value }: { label: string; value: any }) {
 			<div className="text-gray-600 break-words line-clamp-100"><p>{String(value)}</p>{label === 'img' && <img src={String(value)} alt="img" className="w-full mt-2 rounded-xl object-contain" />}</div>
 		</div>
 	);
+}
+
+function UrlRow({ label, href }: { label: string; href?: string | null }) {
+	if (!href) return <FieldRow label={label} value="-" />;
+	return (
+		<div className="flex gap-2 text-sm">
+			<span className="font-semibold text-gray-700 min-w-15 truncate">{label}</span>
+			<a
+				href={href}
+				target="_blank"
+				rel="noopener noreferrer"
+				className="text-blue-600 break-all hover:underline"
+			>
+				{href}
+			</a>
+		</div>
+	);
+}
+
+function getPlaceLocationUrl(placeJson?: GoogleMapsJson | null) {
+	if (!placeJson?.center) return null;
+	const { lat, lng } = placeJson.center;
+	if (typeof lat !== 'number' || typeof lng !== 'number') return null;
+	return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lat},${lng}`)}`;
 }
 
 // Legacy helper (unused now after timezone support) removed
@@ -756,13 +780,34 @@ export default function DatabasePage() {
 							<button className="text-orange-700 font-medium" onClick={() => setEditing(r)}>Edit</button>
 						</div>
 						<div className="h-px bg-gray-200 my-2" />
-						<div className="flex flex-col gap-1">
-							{Object.entries(r)
-								.filter(([_, v]) => typeof v !== 'object')
-								.map(([k, v]) => (
-									<FieldRow key={k} label={k} value={v} />
-								))}
-						</div>
+						{table === 'place' ? (
+							<div className="flex flex-col gap-1">
+								{(() => {
+									const placeJson = (r.google_maps_json ?? null) as GoogleMapsJson | null;
+									const placeName = placeJson?.placeName || String(r.name ?? r.id ?? '');
+									const locationUrl = getPlaceLocationUrl(placeJson);
+									const originalUrl = placeJson?.originalUrl ?? null;
+
+									return (
+										<>
+											<FieldRow label="id" value={r.id} />
+											<FieldRow label="name" value={placeName} />
+											<UrlRow label="location" href={locationUrl} />
+											<UrlRow label="url" href={originalUrl} />
+											<FieldRow label="info" value={r.info ?? ''} />
+										</>
+									);
+								})()}
+							</div>
+						) : (
+							<div className="flex flex-col gap-1">
+								{Object.entries(r)
+									.filter(([_, v]) => typeof v !== 'object')
+									.map(([k, v]) => (
+										<FieldRow key={k} label={k} value={v} />
+									))}
+							</div>
+						)}
 					</Card>
 				))}
 			</div>
