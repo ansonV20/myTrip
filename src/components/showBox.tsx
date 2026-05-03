@@ -23,6 +23,7 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
     return `UTC${sign}${off}`;
   };
   if (item.type === 'plan') {
+    const isNonLocationType = item.typeName === 'Walk around' || item.typeName === 'Find eat';
     return (
       <div
         className={`plan-details p-5 rounded-3xl shadow-sm gap-4 flex flex-col ${item.typeName === 'Hotel' ? 'bg-orange-100' : ''}`}
@@ -36,7 +37,7 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
             <div
               className="font-black text-2xl w-[60%]"
             >
-              {item.place.name}
+              {isNonLocationType ? item.typeName : item.place.name}
               {showEdit && (
               <button
                 className='text-orange-700 text-lg ml-2'
@@ -56,8 +57,8 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
             )}
           </div>
             {/* JP name removed; show link to original maps URL when available */}
-            {/* Hide location link for "Walk around" type items */}
-            {item.typeName !== 'Walk around' && (
+            {/* Hide location link for non-location types */}
+            {!isNonLocationType && (
               <div className="flex gap-2 flex-wrap">
                 <a href={item.place.originalUrl ? item.place.originalUrl : item.place.name}
                   target="_blank"

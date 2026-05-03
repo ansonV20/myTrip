@@ -198,12 +198,16 @@ function App() {
     }
 
     const daysToShow = selectedDay === 'all' ? days : [selectedDay];
-    // Helper: for an item in the global timeline, if it's a "Walk around" plan,
+    // Helper: check if a type is a non-location type (uses previous plan's location)
+    const isNonLocationType = (typeName?: string) => {
+      return typeName === 'Walk around' || typeName === 'Find eat';
+    };
+    // Helper: for an item in the global timeline, if it's a non-location type plan,
     // use the previous plan's location as its effective location.
     const getAdjustedItem = (it: TimelineItem): TimelineItem => {
       if (it.type !== 'plan') return it;
-      const isWalkAround = (it as any).typeName === 'Walk around';
-      if (!isWalkAround) return it;
+      const isNonLoc = isNonLocationType((it as any).typeName);
+      if (!isNonLoc) return it;
       // Find previous plan in the global timeline (sorted already)
       const idx = timeline.indexOf(it);
       if (idx <= 0) return it;
@@ -500,7 +504,7 @@ function App() {
                     {item.type === 'plan' &&
                       index < items.length - 1 &&
                       items[index + 1].type === 'plan' &&
-                      (items[index + 1] as any).typeName !== 'Walk around' &&
+                      !['Walk around', 'Find eat'].includes((items[index + 1] as any).typeName) &&
                       item.place.loc &&
                       (items[index + 1] as any).place.loc && (
                         <div className="mt-6">
