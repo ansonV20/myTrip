@@ -488,7 +488,7 @@ function App() {
               )}
 
               {items.map((item, index) => (
-                // console.log('Rendering item', item),
+                console.log('Rendering item', item),
                 <div key={`${group.day}-${index}`} className="timeline-item">
                   <div className="timeline-content">
                     <ShowBox

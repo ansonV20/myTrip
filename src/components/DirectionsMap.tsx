@@ -90,7 +90,7 @@ function DirectionsMapComponent({ origin, destination }: placeData) {
   // };
 
   // const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=${travelMode.toLowerCase()}`;
-  const googleTransitUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin[0])}&destination=${encodeURIComponent(destination[0])}&travelmode=transit`;
+  const googleTransitUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin[1])}&destination=${encodeURIComponent(destination[1])}&travelmode=transit`;
 
   return (
     isLoaded ? (
@@ -217,7 +217,7 @@ function DirectionsMapComponent({ origin, destination }: placeData) {
           <button className="px-5 py-2 rounded-3xl shadow-sm hover:shadow-[inset_3px_3px_6px_#A3A3A3FF,inset_-3px_-3px_6px_#F0F0F0FF] active:shadow-[inset_3px_3px_6px_#A3A3A3FF,inset_-3px_-3px_6px_#F0F0F0FF]">Google Map | {origin[1]} to {destination[1]}</button>
         </a>
         <hr className="w-px h-[5px] inline-block border-l-1"></hr>
-        {/* <p>{origin[1]} to {destination[1]}</p> */}
+        {/* <p>{googleTransitUrl}</p> */}
       </div>
     ) : <></>
   );

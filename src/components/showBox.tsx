@@ -21,7 +21,7 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
   if (item.type === 'plan') {
     return (
       <div
-        className={`plan-details p-5 rounded-3xl shadow-sm gap-4 flex flex-col ${item.typeName === 'hotel' ? 'bg-orange-100' : ''}`}
+        className={`plan-details p-5 rounded-3xl shadow-sm gap-4 flex flex-col ${item.typeName === 'Hotel' ? 'bg-orange-100' : ''}`}
         style={{
           boxShadow: "inset 3px 3px 6px #A3A3A3FF, inset -3px -3px 6px #F0F0F0FF"
         }}
@@ -74,8 +74,8 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
 
         {(item.place.info || item.info) && <hr className='text-orange-700' />}
         <div className='gap-1 flex flex-col'>
-          {item.place.info && <p className={`text-sm text-white  ${item.typeName === 'hotel' ? 'bg-gray-700' : 'bg-gray-500'} p-3 rounded-xl`}>{item.place.info.split('\\n').map((line, i) => <span key={i}>{line}<br /></span>)}</p>}
-          {item.info && <p className={`text-sm text-white  ${item.typeName === 'hotel' ? 'bg-gray-700' : 'bg-gray-500'} p-3 rounded-xl`}>{item.info.split('\\n').map((line, i) => <span key={i}>{line}<br /></span>)}</p>}
+          {item.place.info && <p className={`text-sm text-white  ${item.typeName === 'Hotel' ? 'bg-gray-700' : 'bg-gray-500'} p-3 rounded-xl`}>{item.place.info.split('\\n').map((line, i) => <span key={i}>{line}<br /></span>)}</p>}
+          {item.info && <p className={`text-sm text-white  ${item.typeName === 'Hotel' ? 'bg-gray-700' : 'bg-gray-500'} p-3 rounded-xl`}>{item.info.split('\\n').map((line, i) => <span key={i}>{line}<br /></span>)}</p>}
         </div>
       </div>
     );
