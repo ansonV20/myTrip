@@ -532,6 +532,65 @@ function App() {
             </div>
           );
         })}
+
+        <hr className='text-gray-700 border-dashed w-full' />
+        {/* Day selector */}
+        <div className="mb-8 flex flex-wrap gap-2">
+          {days.map((d) => {
+            const [, month, day] = d.split('-');
+            const display = `${day}/${month}`;
+            return (
+          <button
+            key={d}
+            className={`px-5 py-2 rounded-3xl shadow-sm`}
+            style={{
+              boxShadow: selectedDay === d ? "inset 3px 3px 6px #A3A3A3FF, inset -3px -3px 6px #F0F0F0FF" : undefined
+            }}
+            onClick={() => {
+              // Leaving Near mode when a specific day is selected
+              setNearMode(false);
+              setOriginPlaceId(null);
+              setSelectedDay(d);
+            }}
+          >
+            {display}
+          </button>
+            );
+          })}
+          <button
+            className="px-5 py-2 rounded-3xl shadow-sm"
+            style={{
+              boxShadow: selectedDay === 'all' ? "inset 3px 3px 6px #A3A3A3FF, inset -3px -3px 6px #F0F0F0FF" : undefined
+            }}
+            onClick={() => {
+              // Leaving Near mode when returning to the full timeline
+              setNearMode(false);
+              setOriginPlaceId(null);
+              setSelectedDay('all');
+            }}
+          >
+            All
+          </button>
+          <button
+            className="px-5 py-2 rounded-3xl shadow-sm"
+            style={{
+              boxShadow: nearMode ? "inset 3px 3px 6px #A3A3A3FF, inset -3px -3px 6px #F0F0F0FF" : undefined
+            }}
+            onClick={async () => {
+              try {
+                const loc = await getBrowserLocation();
+                setUserLocation(loc);
+                setNearMode(true);
+                setSelectedDay('near');
+              } catch (e) {
+                console.error('Failed to get user location for Near mode', e);
+                alert('Unable to get your location. Please allow location access in your browser.');
+              }
+            }}
+          >
+            Near
+          </button>
+        </div>
       </div>
 
       <EditPlanDialog
