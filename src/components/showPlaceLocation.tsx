@@ -23,33 +23,49 @@ export const getBrowserLocation = (): Promise<{ lat: number; lng: number }> => {
 	});
 };
 
-// Call Google Directions API (via JS Maps SDK) to get walking distance in meters
+const parseLatLng = (value: { lat: number; lng: number } | string): { lat: number; lng: number } | null => {
+	if (typeof value === 'string') {
+		const [latStr, lngStr] = value.split(',');
+		const lat = Number(latStr);
+		const lng = Number(lngStr);
+		if (Number.isFinite(lat) && Number.isFinite(lng)) {
+			return { lat, lng };
+		}
+		return null;
+	}
+	if (Number.isFinite(value.lat) && Number.isFinite(value.lng)) {
+		return value;
+	}
+	return null;
+};
+
+const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+
+const getStraightLineDistanceMeters = (origin: { lat: number; lng: number }, destination: { lat: number; lng: number }) => {
+	const earthRadiusMeters = 6371000;
+	const deltaLat = toRadians(destination.lat - origin.lat);
+	const deltaLng = toRadians(destination.lng - origin.lng);
+	const lat1 = toRadians(origin.lat);
+	const lat2 = toRadians(destination.lat);
+	const a =
+		Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+		Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+	return 2 * earthRadiusMeters * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+// Calculate distance from coordinates already parsed from Google Maps JSON.
 export const getDistanceFromGoogle = (
 	origin: { lat: number; lng: number } | string,
 	destinationAddress: string
 ): Promise<number | null> => {
 	return new Promise((resolve) => {
-		if (typeof google === 'undefined' || !google.maps?.DirectionsService) {
-			console.error('Google Maps JS API not loaded for distance calculation');
+		const originPoint = parseLatLng(origin);
+		const destinationPoint = parseLatLng(destinationAddress);
+		if (!originPoint || !destinationPoint) {
+			console.error('Unable to parse coordinates for distance calculation', { origin, destinationAddress });
 			resolve(null);
 			return;
 		}
-		const service = new google.maps.DirectionsService();
-		service.route(
-			{
-				origin,
-				destination: destinationAddress,
-				travelMode: google.maps.TravelMode.WALKING,
-			},
-			(result, status) => {
-				if (status === 'OK' && result?.routes?.[0]?.legs?.[0]?.distance) {
-					const meters = result.routes[0].legs[0].distance!.value;
-					resolve(meters);
-				} else {
-					console.error('Directions request failed for', destinationAddress, status);
-					resolve(null);
-				}
-			}
-		);
+		resolve(getStraightLineDistanceMeters(originPoint, destinationPoint));
 	});
 };

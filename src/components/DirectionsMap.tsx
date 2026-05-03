@@ -90,7 +90,7 @@ function DirectionsMapComponent({ origin, destination }: placeData) {
   // };
 
   // const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=${travelMode.toLowerCase()}`;
-  const googleTransitUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin[1])}&destination=${encodeURIComponent(destination[1])}&travelmode=transit`;
+  const googleTransitUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin[0])}&destination=${encodeURIComponent(destination[0])}&travelmode=transit`;
 
   return (
     isLoaded ? (

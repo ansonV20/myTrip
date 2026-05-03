@@ -184,11 +184,11 @@ function App() {
     if (nearMode && nearPlaces) {
       // Near mode: render a single pseudo-day using nearest places wrapped as fake plans
       const fakeItems: TimelineItem[] = nearPlaces.map((place, idx) => ({
-        time: new Date().toISOString(),
+        time: '' as any,
         stay: undefined,
         tid: 'near',
         pid: `near-${place.id}-${idx}`,
-        info: place.info,
+        info: undefined,
         utc: 0,
         type: 'plan',
         typeName: nearDistances[place.id] != null ? `${(nearDistances[place.id] / 1000).toFixed(2)} km away` : 'near',

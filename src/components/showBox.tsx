@@ -4,8 +4,12 @@ import { FaEdit } from "react-icons/fa";
 
 export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEdit?: boolean; onEdit?: (item: Plan | Tran) => void }) {
   const formatTimeWithOffset = (iso: string, offset?: number) => {
+    const parsed = new Date(iso);
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
     const off = typeof offset === 'number' ? offset : 0;
-    const d = new Date(new Date(iso).getTime() + off * 3600000);
+    const d = new Date(parsed.getTime() + off * 3600000);
     const h = d.getUTCHours();
     const m = d.getUTCMinutes();
     const hour12 = ((h + 11) % 12) + 1;
@@ -42,12 +46,14 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
               </button>
             )}
             </div>
-            <div className='w-[40%] flex flex-row items-baseline justify-end gap-1'>
-              <h1 className='text-nowrap text-end text-lg text-orange-700'>
-                {formatTimeWithOffset(item.time, (item as any).utc)}
-              </h1>
-              <p className='text-xs'>{formatOffsetLabel((item as any).utc).split('UTC')[1]}</p>
-            </div>
+            {formatTimeWithOffset(item.time, (item as any).utc) && (
+              <div className='w-[40%] flex flex-row items-baseline justify-end gap-1'>
+                <h1 className='text-nowrap text-end text-lg text-orange-700'>
+                  {formatTimeWithOffset(item.time, (item as any).utc)}
+                </h1>
+                <p className='text-xs'>{formatOffsetLabel((item as any).utc).split('UTC')[1]}</p>
+              </div>
+            )}
           </div>
             {/* JP name removed; show link to original maps URL when available */}
             <div className="flex gap-2 flex-wrap">
@@ -110,12 +116,14 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
               </button>
             )}
           </h1>
-          <div className='w-[40%] flex flex-row items-baseline justify-end gap-1'>
-            <h1 className='text-nowrap text-end text-lg text-orange-700'>
-              {formatTimeWithOffset(item.time, (item as any).utc)}
-            </h1>
-            <p className='text-xs'>{formatOffsetLabel((item as any).utc).split('UTC')[1]}</p>
-          </div>
+          {formatTimeWithOffset(item.time, (item as any).utc) && (
+            <div className='w-[40%] flex flex-row items-baseline justify-end gap-1'>
+              <h1 className='text-nowrap text-end text-lg text-orange-700'>
+                {formatTimeWithOffset(item.time, (item as any).utc)}
+              </h1>
+              <p className='text-xs'>{formatOffsetLabel((item as any).utc).split('UTC')[1]}</p>
+            </div>
+          )}
         </div>
         {item.url && (
           <a href={item.url}
