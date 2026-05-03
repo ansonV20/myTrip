@@ -50,10 +50,18 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
             </div>
           </div>
             {/* JP name removed; show link to original maps URL when available */}
-            <a href={item.place.originalUrl ? item.place.originalUrl : item.place.name}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-gray-500 hover:underline active:underline">Location</a>
+            <div className="flex gap-2 flex-wrap">
+              <a href={item.place.originalUrl ? item.place.originalUrl : item.place.name}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-gray-500 hover:underline active:underline">Location</a>
+              {item.place.url && (
+                <a href={item.place.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:underline active:underline">Website</a>
+              )}
+            </div>
         </div>
         
           <div className="flex items-center gap-4">
@@ -109,6 +117,12 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
             <p className='text-xs'>{formatOffsetLabel((item as any).utc).split('UTC')[1]}</p>
           </div>
         </div>
+        {item.url && (
+          <a href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-blue-600 hover:underline">Website</a>
+        )}
       </div>
       {item.stay && <div className="flex items-center gap-2"><FaClock /><p className="text-sm">{(() => {
           const h = Math.floor(item.stay / 60);

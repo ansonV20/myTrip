@@ -214,6 +214,7 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 						stay: form.stay === '' || form.stay == null ? null : Number(form.stay),
 						info: form.info == null || form.info === '' ? null : String(form.info),
 						utc: Number((form as any).utc ?? (row as any).utc ?? offset),
+						url: form.url == null || form.url === '' ? null : String(form.url),
 					}
 				);
 			} else {
@@ -224,6 +225,7 @@ function EditRowDialog({ open, table, row, onClose, onSaved }: EditDialogProps) 
 					const dbPayload: Row = {
 						google_maps_json: normalized.google_maps_json ?? null,
 						info: normalized.info ?? null,
+						url: form.url == null || form.url === '' ? null : String(form.url),
 					};
 					const { error } = await supabase.from('place').update(dbPayload).match(match);
 					if (error) throw error;
@@ -441,7 +443,7 @@ function AddRowDialog({ open, table, onClose, onSaved }: AddDialogProps) {
 				};
 				Object.assign(payload, dbPayload);
 			}
-			const insertPayload = table === 'place' ? { id: payload.id, google_maps_json: payload.google_maps_json ?? null, info: payload.info ?? null } : payload;
+			const insertPayload = table === 'place' ? { id: payload.id, google_maps_json: payload.google_maps_json ?? null, info: payload.info ?? null, url: payload.url ?? null } : payload;
 			// Auto-fill `id` for `tran` if missing: use max numeric id + 1, padded to 4 digits starting at 0001
 			if (table === 'tran' && (!payload.id || String(payload.id).trim() === '')) {
 				const { data: existingIds, error: idErr } = await supabase.from('tran').select('id');

@@ -22,6 +22,7 @@ export interface Place {
   // Stored columns
   google_maps_json?: GoogleMapsJson | null;
   info?: string;
+  url?: string;
   // Derived (client-side) helpers for display
   name?: string;
   loc?: string; // "lat,lng"
@@ -39,6 +40,7 @@ export interface Tran {
   stay?: number;
   name: string;
   info?: string;
+  url?: string;
   utc?: number;
   type: 'tran';
 }
@@ -62,7 +64,7 @@ export type TimelineItem = Plan | Tran;
 export const getPlaces = async (): Promise<Place[]> => {
   const { data, error } = await supabase
     .from('place')
-    .select('id, google_maps_json, info');
+    .select('id, google_maps_json, info, url');
 
   if (error) {
     console.error('Error fetching places:', error);
@@ -75,6 +77,7 @@ export const getPlaces = async (): Promise<Place[]> => {
       id: r.id,
       google_maps_json: r.google_maps_json ?? null,
       info: r.info,
+      url: r.url,
     };
     const gm = p.google_maps_json;
     if (gm) {
@@ -136,7 +139,8 @@ export const getTimeline = async (): Promise<TimelineItem[]> => {
       place:place(
         id,
         google_maps_json,
-        info
+        info,
+        url
       )
     `);
 
@@ -170,6 +174,7 @@ export const getTimeline = async (): Promise<TimelineItem[]> => {
         id: placeRaw.id,
         google_maps_json: placeRaw.google_maps_json ?? null,
         info: placeRaw.info,
+        url: placeRaw.url,
       };
       const gm = place.google_maps_json;
       if (gm) {
