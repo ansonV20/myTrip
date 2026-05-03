@@ -551,6 +551,10 @@ function App() {
               setNearMode(false);
               setOriginPlaceId(null);
               setSelectedDay(d);
+              window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+              });
             }}
           >
             {display}
@@ -567,6 +571,10 @@ function App() {
               setNearMode(false);
               setOriginPlaceId(null);
               setSelectedDay('all');
+              window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+              });
             }}
           >
             All
@@ -582,6 +590,10 @@ function App() {
                 setUserLocation(loc);
                 setNearMode(true);
                 setSelectedDay('near');
+                window.scrollTo({
+                  top: 0,
+                  behavior: 'smooth'
+                });
               } catch (e) {
                 console.error('Failed to get user location for Near mode', e);
                 alert('Unable to get your location. Please allow location access in your browser.');
