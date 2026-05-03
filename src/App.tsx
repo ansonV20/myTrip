@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getTimeline, getPlaces, type TimelineItem, type Plan, type Place } from './db';
+import { getTimeline, getPlaces, getLocationFromGoogleMapsJson, type TimelineItem, type Plan, type Place } from './db';
 import { weatherData, type WeatherData } from './weather';
 import { ShowBox } from './components/showBox';
 import { DirectionsMap } from './components/DirectionsMap';
@@ -143,13 +143,14 @@ function App() {
       const originPlace = originPlaceId ? places.find((p) => p.id === originPlaceId) : null;
       const results = await Promise.all(
         allPlaces.map(async (place) => {
-          const address = place.loc || place.name;
+          // Try loc first, then extract from google_maps_json, then fall back to name
+          const address = place.loc || getLocationFromGoogleMapsJson(place.google_maps_json) || place.name;
           if (!address) {
 	            // console.log('[near] skip  no address for place', place.name);
 	            return { place, distanceMeters: Number.POSITIVE_INFINITY };
           }
           const originParam = originPlace
-            ? (originPlace.loc || originPlace.name || '')
+            ? (originPlace.loc || getLocationFromGoogleMapsJson(originPlace.google_maps_json) || originPlace.name || '')
             : userLocation
             ? { lat: userLocation.lat, lng: userLocation.lng }
             : '';

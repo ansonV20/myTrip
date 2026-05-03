@@ -61,6 +61,15 @@ export interface Plan {
 
 export type TimelineItem = Plan | Tran;
 
+// Helper: extract "lat,lng" string from GoogleMapsJson for use in distance calculations
+export const getLocationFromGoogleMapsJson = (gm?: GoogleMapsJson | null): string | null => {
+  if (!gm) return null;
+  if (gm.center && typeof gm.center.lat === 'number' && typeof gm.center.lng === 'number') {
+    return `${gm.center.lat},${gm.center.lng}`;
+  }
+  return null;
+};
+
 export const getPlaces = async (): Promise<Place[]> => {
   const { data, error } = await supabase
     .from('place')
@@ -82,9 +91,8 @@ export const getPlaces = async (): Promise<Place[]> => {
     const gm = p.google_maps_json;
     if (gm) {
       if (gm.placeName) p.name = gm.placeName;
-      if (gm.center && typeof gm.center.lat === 'number' && typeof gm.center.lng === 'number') {
-        p.loc = `${gm.center.lat},${gm.center.lng}`;
-      }
+      const locFromJson = getLocationFromGoogleMapsJson(gm);
+      if (locFromJson) p.loc = locFromJson;
       if (gm.originalUrl) p.originalUrl = gm.originalUrl;
     }
     if (!p.name) p.name = String(p.id);
@@ -179,9 +187,8 @@ export const getTimeline = async (): Promise<TimelineItem[]> => {
       const gm = place.google_maps_json;
       if (gm) {
         if (gm.placeName) place.name = gm.placeName;
-        if (gm.center && typeof gm.center.lat === 'number' && typeof gm.center.lng === 'number') {
-          place.loc = `${gm.center.lat},${gm.center.lng}`;
-        }
+        const locFromJson = getLocationFromGoogleMapsJson(gm);
+        if (locFromJson) place.loc = locFromJson;
         if (gm.originalUrl) place.originalUrl = gm.originalUrl;
       }
       if (!place.name) place.name = String(place.id);
