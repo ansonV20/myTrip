@@ -349,7 +349,7 @@ export const updatePlan = async (
 // Update a tran row by id with new values.
 export const updateTran = async (
   original: { id: string } | Pick<Tran, 'id'>,
-  updates: { time?: string; stay?: number | null; info?: string | null; utc?: number | null }
+  updates: { time?: string; stay?: number | null; info?: string | null; utc?: number | null; url?: string | null }
 ): Promise<void> => {
   const { error, data } = await supabase
     .from('tran')
