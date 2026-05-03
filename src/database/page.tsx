@@ -350,11 +350,13 @@ const tableSchemas: Record<TableName, { key: string; label: string; type: 'text'
 		// { key: 'utc', label: 'UTC Offset (e.g., +8)', type: 'number' },
 		{ key: 'stay', label: 'Stay (minutes)', type: 'number' },
 		{ key: 'info', label: 'Info', type: 'text' },
+		{ key: 'url', label: 'URL', type: 'text' },
 	],
 	place: [
 		{ key: 'id', label: 'ID', type: 'text', required: true },
 		{ key: 'map', label: 'Google Maps URL', type: 'text', required: true },
 		{ key: 'info', label: 'Info', type: 'text' },
+		{ key: 'url', label: 'URL', type: 'text' },
 	],
 	type: [
 		{ key: 'id', label: 'ID', type: 'text', required: true },
