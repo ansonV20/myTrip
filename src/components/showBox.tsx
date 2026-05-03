@@ -56,18 +56,21 @@ export function ShowBox({ item, showEdit, onEdit }: { item: TimelineItem; showEd
             )}
           </div>
             {/* JP name removed; show link to original maps URL when available */}
-            <div className="flex gap-2 flex-wrap">
-              <a href={item.place.originalUrl ? item.place.originalUrl : item.place.name}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-gray-500 hover:underline active:underline">Location</a>
-              {item.place.url && (
-                <a href={item.place.url}
+            {/* Hide location link for "Walk around" type items */}
+            {item.typeName !== 'Walk around' && (
+              <div className="flex gap-2 flex-wrap">
+                <a href={item.place.originalUrl ? item.place.originalUrl : item.place.name}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:underline active:underline">Website</a>
-              )}
-            </div>
+                  className="text-sm text-gray-500 hover:underline active:underline">Location</a>
+                {item.place.url && (
+                  <a href={item.place.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline active:underline">Website</a>
+                )}
+              </div>
+            )}
         </div>
         
           <div className="flex items-center gap-4">

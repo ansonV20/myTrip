@@ -202,7 +202,7 @@ function App() {
     // use the previous plan's location as its effective location.
     const getAdjustedItem = (it: TimelineItem): TimelineItem => {
       if (it.type !== 'plan') return it;
-      const isWalkAround = (it.place?.name || '').trim().toLowerCase() === 'walk around';
+      const isWalkAround = (it as any).typeName === 'Walk around';
       if (!isWalkAround) return it;
       // Find previous plan in the global timeline (sorted already)
       const idx = timeline.indexOf(it);
@@ -500,7 +500,7 @@ function App() {
                     {item.type === 'plan' &&
                       index < items.length - 1 &&
                       items[index + 1].type === 'plan' &&
-                      (items[index + 1] as any).place.name.toLowerCase() !== 'walk around' &&
+                      (items[index + 1] as any).typeName !== 'Walk around' &&
                       item.place.loc &&
                       (items[index + 1] as any).place.loc && (
                         <div className="mt-6">
